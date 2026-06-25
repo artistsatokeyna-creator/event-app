@@ -1,0 +1,2390 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>イベント収支 & レジアプリ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+:root {
+  --primary: #6366f1;
+  --primary-dark: #4f46e5;
+  --success: #22c55e;
+  --danger: #ef4444;
+  --book: #f97316;
+  --warning: #d97706;
+  --yata: #10b981;
+  --lecture: #0ea5e9;
+  --expense: #ef4444;
+  --bg: #f1f5f9;
+  --card: #fff;
+  --text: #1e293b;
+  --muted: #64748b;
+  --border: #e2e8f0;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI','Hiragino Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+.header{background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;padding:13px 18px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,.2)}
+.header h1{font-size:1.1rem;font-weight:700}
+
+.tabs{display:flex;background:#fff;border-bottom:2px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tab-btn{flex:1;min-width:64px;padding:10px 4px;border:none;background:none;font-size:.72rem;font-weight:600;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:all .2s;white-space:nowrap}
+.tab-btn .ti{font-size:1.2rem}
+.tab-btn.active{color:var(--primary);border-bottom:3px solid var(--primary);background:#f0f0ff}
+.tab-btn:hover:not(.active){background:#f8f8ff;color:var(--primary)}
+
+.tab-content{display:none;padding:14px;max-width:920px;margin:0 auto}
+.tab-content.active{display:block}
+
+.card{background:#fff;border-radius:12px;padding:15px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:14px;border:1px solid var(--border)}
+.card h2{font-size:.95rem;font-weight:700;margin-bottom:11px;color:var(--primary);display:flex;align-items:center;gap:5px}
+
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:9px}
+@media(max-width:580px){.g2{grid-template-columns:1fr}.g3{grid-template-columns:1fr 1fr}.g4{grid-template-columns:1fr 1fr}}
+
+input,select,textarea{width:100%;padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:.88rem;background:#fff;font-family:inherit;transition:border .2s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+label{font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:3px;display:block}
+.fg{margin-bottom:9px}
+
+.btn{padding:9px 16px;border:none;border-radius:8px;font-size:.87rem;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:5px}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-dark)}
+.btn-success{background:var(--success);color:#fff}.btn-success:hover{background:#16a34a}
+.btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{background:#dc2626}
+.btn-book{background:var(--book);color:#fff}.btn-book:hover{background:#ea580c}
+.btn-warning{background:var(--warning);color:#fff}.btn-warning:hover{background:#b45309}
+.btn-yata{background:var(--yata);color:#fff}.btn-yata:hover{background:#059669}
+.btn-lecture{background:var(--lecture);color:#fff}.btn-lecture:hover{background:#0284c7}
+.btn-outline{background:#fff;border:1.5px solid var(--primary);color:var(--primary)}.btn-outline:hover{background:#f0f0ff}
+.btn-sm{padding:5px 11px;font-size:.77rem}
+.btn-lg{padding:13px 24px;font-size:.97rem}
+.btn-block{width:100%;justify-content:center}
+
+/* stat boxes */
+.stat{text-align:center;padding:13px;border-radius:10px}
+.stat .v{font-size:1.35rem;font-weight:800}
+.stat .l{font-size:.72rem;color:var(--muted);margin-top:2px}
+.s-blue{background:#eff6ff;color:#2563eb}
+.s-green{background:#f0fdf4;color:#16a34a}
+.s-red{background:#fef2f2;color:#dc2626}
+.s-purple{background:#f5f3ff;color:#7c3aed}
+.s-orange{background:#fff7ed;color:#c2410c}
+.s-teal{background:#f0fdfa;color:#0f766e}
+.s-sky{background:#f0f9ff;color:#0369a1}
+.s-amber{background:#fffbeb;color:#92400e}
+
+/* register */
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:9px}
+.prod-btn{padding:12px 6px;border:2px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;text-align:center;transition:all .2s}
+.prod-btn:hover{border-color:var(--book);background:#fff7ed;transform:scale(1.03)}
+.prod-btn .p{font-size:.82rem;color:var(--book);font-weight:700}
+.prod-btn .n{font-size:.78rem;margin-top:3px}
+
+.cart-item{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--border)}
+.cart-item:last-child{border-bottom:none}
+.ci-name{flex:1;font-size:.88rem;font-weight:600}
+.qc{display:flex;align-items:center;gap:5px}
+.qb{width:27px;height:27px;border:1.5px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:.95rem;font-weight:700;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.qb:hover{background:var(--book);color:#fff;border-color:var(--book)}
+.qn{min-width:26px;text-align:center;font-weight:700}
+.ci-sub{font-weight:700;color:var(--book);min-width:78px;text-align:right}
+
+.total-box{background:#fff7ed;border-radius:10px;padding:13px;text-align:center}
+.total-box .amt{font-size:1.9rem;font-weight:900;color:var(--book)}
+.total-box .lbl{font-size:.78rem;color:var(--muted)}
+
+.recv-box{background:#f0fdf4;border-radius:10px;padding:9px 13px}
+.recv-box input{font-size:1.35rem;font-weight:800;text-align:center;background:transparent;border:none;color:#15803d;padding:3px}
+.recv-box input:focus{outline:none;box-shadow:none}
+.change-box{background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:10px;padding:13px;text-align:center}
+.change-box .amt{font-size:1.7rem;font-weight:900;color:#92400e}
+.quick-row{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:7px}
+.qkb{padding:9px 3px;border:1.5px solid var(--border);border-radius:7px;background:#fff;font-size:.8rem;font-weight:700;cursor:pointer;text-align:center;transition:all .15s;color:var(--text)}
+.qkb:hover{background:#f0fdf4;border-color:var(--success);color:var(--success)}
+
+/* split */
+.split-panel{background:linear-gradient(135deg,#fff7ed,#ffedd5);border-radius:11px;padding:13px;border:2px solid #fed7aa}
+.split-panel h3{font-size:.87rem;font-weight:700;color:var(--book);margin-bottom:9px}
+.split-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #fed7aa}
+.split-row:last-child{border-bottom:none}
+.split-row .mn{font-size:.83rem;font-weight:600}
+.split-row .pct{font-size:.72rem;color:var(--muted);margin-left:5px}
+.split-row .sa{font-size:.97rem;font-weight:800;color:var(--book)}
+
+/* yata */
+.menu-btn{padding:12px 6px;border:2px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;text-align:center;transition:all .2s}
+.menu-btn:hover{border-color:var(--yata);background:#f0fdfa;transform:scale(1.03)}
+.menu-btn .mp{font-size:.82rem;color:var(--yata);font-weight:700}
+.menu-btn .mn2{font-size:.78rem;margin-top:3px}
+.menu-btn .mt{font-size:.7rem;color:var(--muted)}
+
+/* 収支サマリー */
+.income-summary{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:12px;padding:15px;border:2px solid #86efac;margin-bottom:14px}
+.income-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #86efac}
+.income-row:last-child{border-bottom:none}
+.income-row.total-row{border-top:2px solid #16a34a;margin-top:4px;padding-top:10px}
+.income-row .ir-label{font-size:.87rem;font-weight:600;display:flex;align-items:center;gap:6px}
+.income-row .ir-amt{font-size:1.05rem;font-weight:800}
+
+.expense-summary{background:linear-gradient(135deg,#fef2f2,#fee2e2);border-radius:12px;padding:15px;border:2px solid #fca5a5;margin-bottom:14px}
+.profit-box{border-radius:12px;padding:15px;text-align:center;margin-bottom:14px}
+.profit-box .pv{font-size:2.2rem;font-weight:900}
+.profit-box .pl{font-size:.82rem;font-weight:600;margin-top:3px}
+
+/* table */
+table{width:100%;border-collapse:collapse}
+th{background:#f8fafc;font-size:.73rem;color:var(--muted);font-weight:600;padding:9px 11px;text-align:left;border-bottom:2px solid var(--border)}
+td{padding:9px 11px;border-bottom:1px solid var(--border);font-size:.83rem;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.72rem;font-weight:600}
+.b-lecture{background:#e0f2fe;color:#0369a1}
+.b-yata{background:#d1fae5;color:#065f46}
+.b-book{background:#ffedd5;color:#c2410c}
+.b-expense{background:#fee2e2;color:#dc2626}
+.b-other{background:#f3f4f6;color:#374151}
+
+/* modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;padding:15px}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:15px;padding:22px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:1.05rem;font-weight:700;margin-bottom:14px}
+
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:5px}
+.chip{padding:6px 13px;border-radius:20px;border:1.5px solid var(--border);background:#fff;cursor:pointer;font-size:.8rem;transition:all .15s}
+.chip.sel{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+.toast{position:fixed;bottom:18px;right:18px;background:#1e293b;color:#fff;padding:11px 18px;border-radius:10px;font-size:.87rem;z-index:2000;opacity:0;transform:translateY(8px);transition:all .3s;pointer-events:none;max-width:280px}
+.toast.show{opacity:1;transform:translateY(0)}
+
+.empty{text-align:center;padding:36px 18px;color:var(--muted)}
+.empty .ei{font-size:2.8rem;margin-bottom:8px}
+
+.chart-wrap{position:relative;height:230px}
+
+.ratio-bar{height:7px;background:#e2e8f0;border-radius:4px;overflow:hidden;margin-top:3px}
+.ratio-fill{height:100%;border-radius:4px;background:var(--book);transition:width .3s}
+.member-card{display:flex;align-items:center;gap:9px;padding:9px 11px;background:#fff7ed;border-radius:8px;border:1.5px solid #fed7aa;margin-bottom:7px}
+.m-avatar{width:34px;height:34px;border-radius:50%;background:var(--book);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.87rem;flex-shrink:0}
+.m-info{flex:1}
+.m-name{font-weight:700;font-size:.87rem}
+.pct-badge{background:var(--book);color:#fff;padding:2px 9px;border-radius:11px;font-size:.8rem;font-weight:700}
+
+/* yata customer card */
+.cust-card{background:#f0fdfa;border:1.5px solid #a7f3d0;border-radius:9px;padding:10px 12px;margin-bottom:7px;cursor:pointer;transition:all .2s}
+.cust-card:hover{border-color:var(--yata);background:#d1fae5}
+.cust-card.selected{border-color:var(--yata);background:#d1fae5;box-shadow:0 0 0 3px rgba(16,185,129,.15)}
+.cust-name{font-weight:700;font-size:.9rem}
+.cust-sub{font-size:.75rem;color:var(--muted);margin-top:2px}
+
+.divider{border:none;border-top:1px solid var(--border);margin:13px 0}
+.flex{display:flex}.ai{align-items:center}.jb{justify-content:space-between}
+.mt2{margin-top:7px}.mt3{margin-top:11px}
+.fw{font-weight:700}.text-r{text-align:right}
+.text-m{color:var(--muted);font-size:.78rem}
+
+/* completion modal */
+.comp-total{font-size:1.55rem;font-weight:900;color:var(--book);text-align:center;padding:13px;background:#fff7ed;border-radius:9px;margin-bottom:13px}
+.comp-change{font-size:1.15rem;font-weight:800;color:#92400e;text-align:center;padding:10px;background:#fef3c7;border-radius:9px;margin-bottom:13px}
+
+.section-lbl{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:7px;padding-bottom:3px;border-bottom:1px solid var(--border)}
+/* 表紙画像 */
+#cover-drop-zone:hover{border-color:var(--book);background:#fff7ed}
+.book-cover{width:54px;height:72px;object-fit:cover;border-radius:5px;box-shadow:0 2px 6px rgba(0,0,0,.18);flex-shrink:0}
+.book-cover-sm{width:46px;height:62px;object-fit:cover;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+
+/* 支払ステータス */
+.pay-badge{display:inline-flex;align-items:center;gap:3px;padding:3px 10px;border-radius:20px;font-size:.73rem;font-weight:700;cursor:pointer;border:none;transition:all .15s}
+.pay-transfer{background:#dbeafe;color:#1d4ed8}
+.pay-cash{background:#d1fae5;color:#065f46}
+.pay-unpaid{background:#fee2e2;color:#991b1b}
+.pay-badge:hover{opacity:.8;transform:scale(1.05)}
+
+/* 参加者カード */
+.pax-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border)}
+.pax-row:last-child{border-bottom:none}
+.pax-name{flex:1;font-weight:600;font-size:.87rem}
+.pax-amt{font-weight:800;font-size:.95rem;min-width:80px;text-align:right}
+
+/* 支払サマリーバー */
+.pay-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+.pay-sum-box{border-radius:9px;padding:10px;text-align:center}
+.psb-transfer{background:#dbeafe;border:1.5px solid #93c5fd}
+.psb-cash{background:#d1fae5;border:1.5px solid #6ee7b7}
+.psb-unpaid{background:#fee2e2;border:1.5px solid #fca5a5}
+.pay-sum-box .pv{font-size:1.1rem;font-weight:800}
+.pay-sum-box .pl{font-size:.7rem;font-weight:600;margin-top:2px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span>🏪</span>
+  <h1>イベント収支 &amp; レジアプリ</h1>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+    <button onclick="syncCopy()" title="データをコピーしてブラウザに貼り付けできます"
+      style="padding:5px 10px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);border-radius:8px;color:#fff;font-size:.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap">
+      📋 コピー
+    </button>
+    <button onclick="syncPaste()" title="コピーしたデータをここに貼り付けます"
+      style="padding:5px 10px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);border-radius:8px;color:#fff;font-size:.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap">
+      📥 貼付け
+    </button>
+  </div>
+</div>
+
+<!-- クリップボード同期モーダル -->
+<div class="modal-overlay" id="sync-modal" onclick="if(event.target===this)closeSyncModal()">
+  <div class="modal" style="max-width:500px">
+    <h3 id="sync-modal-title" style="margin-bottom:12px">📋 データを同期する</h3>
+    <div id="sync-modal-body"></div>
+    <button class="btn btn-outline btn-block" style="margin-top:12px" onclick="closeSyncModal()">閉じる</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="goTab('register',this)"><span class="ti">🛒</span>レジ</button>
+  <button class="tab-btn" onclick="goTab('lecture',this)"><span class="ti">📡</span>講演会</button>
+  <button class="tab-btn" onclick="goTab('yata',this)"><span class="ti">🤲</span>八咫活法</button>
+  <button class="tab-btn" onclick="goTab('finance',this)"><span class="ti">💰</span>収支</button>
+  <button class="tab-btn" onclick="goTab('books',this)"><span class="ti">📚</span>書籍</button>
+  <button class="tab-btn" onclick="goTab('team',this)"><span class="ti">👥</span>チーム</button>
+  <button class="tab-btn" onclick="goTab('report',this)"><span class="ti">📊</span>レポート</button>
+</div>
+
+<!-- ========== レジ ========== -->
+<div id="tab-register" class="tab-content active">
+  <div class="g4">
+    <div class="stat s-orange"><div class="v" id="r-today">¥0</div><div class="l">書籍売上（今日）</div></div>
+    <div class="stat s-sky"><div class="v" id="r-count">0</div><div class="l">取引件数</div></div>
+    <div class="stat s-amber"><div class="v" id="r-avg">¥0</div><div class="l">平均客単価</div></div>
+    <div class="stat s-purple"><div class="v" id="r-books">0</div><div class="l">販売冊数</div></div>
+  </div>
+
+  <div class="card">
+    <h2>📚 書籍を選択</h2>
+    <div class="prod-grid" id="product-grid"><div class="empty" style="grid-column:1/-1;padding:18px">「書籍」タブで登録してください</div></div>
+  </div>
+
+  <div class="card">
+    <div class="flex ai jb" style="margin-bottom:10px">
+      <h2 style="margin:0">🛒 購入リスト</h2>
+      <button class="btn btn-sm btn-danger" onclick="clearCart()">🗑 クリア</button>
+    </div>
+    <div id="cart-items"><div class="empty"><div class="ei">📚</div>書籍を選択してください</div></div>
+    <hr class="divider">
+    <div class="total-box"><div class="lbl">合計金額（税込）</div><div class="amt" id="cart-total">¥0</div></div>
+  </div>
+
+  <div class="card">
+    <h2>💴 お会計</h2>
+    <div class="g2">
+      <div>
+        <label>受取金額</label>
+        <div class="recv-box"><input type="number" id="recv-amt" value="0" min="0" oninput="calcChange()"></div>
+        <div class="quick-row">
+          <button class="qkb" onclick="setRecv(1000)">¥1,000</button>
+          <button class="qkb" onclick="setRecv(2000)">¥2,000</button>
+          <button class="qkb" onclick="setRecv(5000)">¥5,000</button>
+          <button class="qkb" onclick="setRecv(10000)">¥10,000</button>
+        </div>
+        <button class="btn btn-outline btn-block mt3" onclick="setExact()">💰 ちょうどにする</button>
+      </div>
+      <div>
+        <label>お釣り</label>
+        <div class="change-box" style="margin-bottom:11px"><div class="amt" id="change-amt">¥0</div></div>
+        <button class="btn btn-book btn-block btn-lg" onclick="completeSale()">✅ 会計完了</button>
+      </div>
+    </div>
+    <div id="split-preview" style="display:none;margin-top:13px">
+      <div class="split-panel"><h3>📊 分配プレビュー</h3><div id="split-preview-rows"></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="flex ai jb" style="margin-bottom:10px">
+      <h2 style="margin:0">📋 売上履歴</h2>
+      <button class="btn btn-sm btn-outline" onclick="exportSalesCSV()">📥 CSV</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table><thead><tr><th>時刻</th><th>内容</th><th>金額</th><th>受取</th><th>釣銭</th><th></th></tr></thead>
+      <tbody id="sales-tbody"></tbody></table>
+    </div>
+    <div id="sales-empty" class="empty"><div class="ei">📋</div>まだ売上がありません</div>
+  </div>
+</div>
+
+<!-- ========== 八咫活法 ========== -->
+<div id="tab-yata" class="tab-content">
+
+  <!-- イベント紐づけバナー -->
+  <div id="yata-evt-banner" style="padding:9px 14px;border-radius:10px;margin-bottom:12px;border:2px solid #a7f3d0;background:linear-gradient(135deg,#f0fdfa,#ecfdf5)">
+    <div style="font-size:.72rem;font-weight:700;color:var(--yata);margin-bottom:2px">🔗 紐づけイベント</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div>
+        <div style="font-size:.95rem;font-weight:800;color:#065f46" id="yata-evt-name">（イベント未選択）</div>
+        <div style="font-size:.75rem;color:var(--muted)" id="yata-evt-date"></div>
+      </div>
+      <button class="btn btn-sm" style="background:#d1fae5;color:#065f46;white-space:nowrap" onclick="goTab('lecture', document.querySelector('[onclick*=lecture]'))">📡 イベント選択へ</button>
+    </div>
+  </div>
+
+  <!-- サマリー（施術件数 / 入金状況） -->
+  <div class="g4" style="margin-bottom:8px">
+    <div class="stat s-teal"><div class="v" id="y-today">¥0</div><div class="l">本日の施術（件数）</div></div>
+    <div class="stat s-green"><div class="v" id="y-count">0件</div><div class="l">施術合計件数</div></div>
+    <div class="stat s-teal"><div class="v" id="y-total">¥0</div><div class="l">入金済み累計</div></div>
+    <div class="stat s-red"><div class="v" id="y-unpaid">¥0</div><div class="l">未収金</div></div>
+  </div>
+  <div id="y-attend-badge" style="display:none;background:#ecfdf5;border:1.5px solid #6ee7b7;border-radius:9px;padding:8px 12px;margin-bottom:8px;font-size:.83rem;font-weight:700;color:#065f46"></div>
+  <div class="pay-summary" style="padding:0 0 12px">
+    <div class="pay-sum-box psb-transfer">
+      <div class="pv" id="y-transfer-amt" style="color:#1d4ed8">¥0</div>
+      <div class="pl" style="color:#1e40af">🏦 振込済み <span id="y-transfer-cnt">0</span>件</div>
+    </div>
+    <div class="pay-sum-box psb-cash">
+      <div class="pv" id="y-cash-amt" style="color:#065f46">¥0</div>
+      <div class="pl" style="color:#064e3b">💴 現金済み <span id="y-cash-cnt">0</span>件</div>
+    </div>
+    <div class="pay-sum-box psb-unpaid">
+      <div class="pv" id="y-unpaid-amt2" style="color:#991b1b">¥0</div>
+      <div class="pl" style="color:#7f1d1d">⏳ 未払い <span id="y-unpaid-cnt">0</span>件</div>
+    </div>
+  </div>
+
+  <!-- ══════════════ ① 施術の記録 ══════════════ -->
+  <div style="background:linear-gradient(135deg,#f0fdfa,#ecfdf5);border-radius:14px;padding:16px;margin-bottom:14px;border:2px solid #6ee7b7">
+    <div style="font-size:.95rem;font-weight:800;color:#065f46;margin-bottom:12px">🌿 ① 施術を記録する</div>
+
+    <!-- メニュー選択 -->
+    <div style="margin-bottom:12px">
+      <div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:6px">施術メニューを選択</div>
+      <div class="prod-grid" id="menu-grid"><div class="empty" style="grid-column:1/-1;padding:18px">施術メニューを下に登録してください</div></div>
+      <div id="selected-menu-info" style="margin-top:8px;padding:8px 12px;background:#fff;border-radius:8px;border:1.5px solid #a7f3d0;display:none">
+        <span style="font-size:.8rem;font-weight:700;color:var(--yata)">選択中：</span>
+        <span id="selected-menu-label" style="font-size:.88rem;font-weight:800"></span>
+      </div>
+    </div>
+
+    <!-- お客様 -->
+    <div style="margin-bottom:12px;background:#fff;border-radius:10px;padding:12px;border:1px solid #a7f3d0">
+      <div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:8px">👤 お客様</div>
+      <div class="g2" style="margin-bottom:8px">
+        <div class="fg" style="margin:0"><label>お名前</label><input type="text" id="y-cname" placeholder="例：山田 花子"></div>
+        <div class="fg" style="margin:0"><label>連絡先（任意）</label><input type="text" id="y-ccontact" placeholder="電話 / メール"></div>
+      </div>
+      <button class="btn btn-yata btn-block" onclick="upsertCustomer()">👤 登録 / 選択</button>
+      <div id="customer-list-mini" style="max-height:120px;overflow-y:auto;margin-top:8px"></div>
+      <div style="margin-top:6px;font-size:.8rem;color:var(--muted)">選択中：<strong id="selected-customer-label">（未選択）</strong></div>
+    </div>
+
+    <!-- 施術詳細（支払方法なし） -->
+    <div style="background:#fff;border-radius:10px;padding:12px;border:1px solid #a7f3d0">
+      <div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:8px">📝 施術の詳細</div>
+      <div class="g2">
+        <div class="fg"><label>施術日</label><input type="date" id="y-date"></div>
+        <div class="fg"><label>金額（円）</label><input type="number" id="y-amount" placeholder="0" min="0"></div>
+      </div>
+      <div class="fg">
+        <label>施術メモ・身体の状態</label>
+        <textarea id="y-memo" rows="3" placeholder="例：右肩の張り、首のコリ。施術後はスッキリされた様子。"></textarea>
+      </div>
+      <button class="btn btn-yata btn-block btn-lg" onclick="recordTreatment()">🤲 施術を記録する</button>
+    </div>
+  </div>
+
+  <!-- 施術履歴 -->
+  <div class="card">
+    <div class="flex ai jb" style="margin-bottom:10px">
+      <h2 style="margin:0">🗒 施術履歴</h2>
+      <button class="btn btn-sm btn-outline" onclick="exportYataCSV()">📥 CSV</button>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <button id="yf-today" class="btn btn-sm btn-yata" onclick="setYataFilter('today')">今日</button>
+      <button id="yf-week"  class="btn btn-sm" style="background:#f1f5f9;color:#374151" onclick="setYataFilter('week')">今週</button>
+      <button id="yf-all"   class="btn btn-sm" style="background:#f1f5f9;color:#374151" onclick="setYataFilter('all')">全期間</button>
+      <div style="display:flex;gap:4px;align-items:center;margin-left:auto">
+        <input type="date" id="yf-from" style="font-size:.78rem;padding:3px 6px;border:1px solid var(--border);border-radius:6px" onchange="setYataFilter('custom')">
+        <span style="font-size:.78rem;color:var(--muted)">〜</span>
+        <input type="date" id="yf-to"   style="font-size:.78rem;padding:3px 6px;border:1px solid var(--border);border-radius:6px" onchange="setYataFilter('custom')">
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table><thead><tr><th>出席</th><th>施術日</th><th>お客様</th><th>メニュー</th><th>金額</th><th>メモ</th><th></th></tr></thead>
+      <tbody id="yata-tbody"></tbody></table>
+    </div>
+    <div id="yata-empty" class="empty"><div class="ei">🤲</div>まだ施術記録がありません</div>
+  </div>
+
+  <!-- ══════════════ ② 入金の記録 ══════════════ -->
+  <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:14px;padding:16px;margin-bottom:14px;border:2px solid #93c5fd">
+    <div style="font-size:.95rem;font-weight:800;color:#1e3a8a;margin-bottom:4px">💰 ② 入金を記録する</div>
+    <div style="font-size:.78rem;color:#3b82f6;margin-bottom:12px">施術ごとに支払方法と振込日を記録します</div>
+
+    <!-- 未払い件数バッジ -->
+    <div id="yata-unpaid-badge" style="display:none;background:#fee2e2;border:1.5px solid #fca5a5;border-radius:9px;padding:8px 12px;margin-bottom:12px;font-size:.83rem;font-weight:700;color:#991b1b"></div>
+
+    <!-- 入金記録リスト（施術ごと） -->
+    <div id="yata-payment-list"><div class="empty"><div class="ei">💰</div>施術を記録すると入金管理ができます</div></div>
+  </div>
+
+  <!-- メニュー登録 -->
+  <div class="card">
+    <h2>🌿 施術メニューを登録</h2>
+    <div class="g3">
+      <div class="fg"><label>メニュー名</label><input type="text" id="m-name" placeholder="例：全身調整"></div>
+      <div class="fg"><label>料金（円）</label><input type="number" id="m-price" placeholder="5000" min="0"></div>
+      <div class="fg"><label>時間（分）</label><input type="number" id="m-duration" placeholder="60" min="0"></div>
+    </div>
+    <button class="btn btn-yata btn-block" id="m-submit-btn" onclick="addMenu()">＋ メニューを追加</button>
+    <button class="btn btn-block" id="m-cancel-btn" style="display:none;margin-top:6px;background:#f3f4f6;color:#374151" onclick="cancelMenuEdit()">✕ キャンセル</button>
+    <div id="menu-list" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- ========== 収支 ========== -->
+<!-- ========== 講演会 ========== -->
+<div id="tab-lecture" class="tab-content">
+
+  <!-- イベント選択 / 作成 -->
+  <div class="card" style="border:2px solid #93c5fd;background:linear-gradient(135deg,#eff6ff,#f0f9ff)">
+    <h2 style="color:var(--lecture)">📡 イベントを選択</h2>
+    <!-- 現在選択中バナー -->
+    <div id="evt-current-banner" style="display:none;padding:9px 12px;background:#dbeafe;border-radius:8px;border:1.5px solid #93c5fd;margin-bottom:10px">
+      <div style="font-size:.72rem;color:var(--lecture);font-weight:700">現在のイベント</div>
+      <div style="font-size:1rem;font-weight:800;color:#1e3a8a" id="evt-current-name"></div>
+      <div style="font-size:.8rem;color:#1e40af" id="evt-current-date"></div>
+    </div>
+    <!-- イベント一覧 -->
+    <div id="evt-list" style="margin-bottom:10px"></div>
+    <!-- 新規イベント作成フォーム -->
+    <details id="evt-new-wrap" style="margin-top:4px">
+      <summary style="font-size:.82rem;font-weight:700;color:var(--lecture);cursor:pointer;padding:6px 0">＋ 新しいイベントを作成</summary>
+      <div style="margin-top:8px">
+        <div class="g2" style="margin-bottom:8px">
+          <div class="fg" style="margin:0"><label>イベント名</label><input type="text" id="evt-new-name" placeholder="例：第3回 健康セミナー"></div>
+          <div class="fg" style="margin:0"><label>開催日</label><input type="date" id="evt-new-date"></div>
+        </div>
+        <button class="btn btn-lecture btn-block" onclick="addNewEvent()">＋ イベントを作成して選択</button>
+      </div>
+    </details>
+  </div>
+
+  <!-- 支払サマリー -->
+  <div class="income-summary" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border:2px solid #93c5fd">
+    <div style="font-size:.82rem;font-weight:700;color:var(--lecture);margin-bottom:10px">📡 講演会 支払サマリー</div>
+    <div class="pay-summary">
+      <div class="pay-sum-box psb-transfer">
+        <div class="pv" id="pax-transfer-amt" style="color:#1d4ed8">¥0</div>
+        <div class="pl" style="color:#1e40af">🏦 振込済み <span id="pax-transfer-cnt">0</span>名</div>
+      </div>
+      <div class="pay-sum-box psb-cash">
+        <div class="pv" id="pax-cash-amt" style="color:#065f46">¥0</div>
+        <div class="pl" style="color:#064e3b">💴 現金済み <span id="pax-cash-cnt">0</span>名</div>
+      </div>
+      <div class="pay-sum-box psb-unpaid">
+        <div class="pv" id="pax-unpaid-amt" style="color:#991b1b">¥0</div>
+        <div class="pl" style="color:#7f1d1d">⏳ 未払い <span id="pax-unpaid-cnt">0</span>名</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 参加者追加フォーム -->
+  <div class="card">
+    <div class="flex ai jb" style="margin-bottom:12px">
+      <h2 style="margin:0">📡 参加者を追加</h2>
+      <button class="btn btn-sm btn-outline" onclick="exportPaxCSV()">📥 CSV</button>
+    </div>
+    <div style="background:#f8fafc;border-radius:9px;padding:12px;margin-bottom:0;border:1px solid var(--border)">
+      <div class="g2" style="margin-bottom:8px">
+        <div class="fg" style="margin:0"><label>氏名</label><input type="text" id="pax-name" placeholder="例：山田 太郎"></div>
+        <div class="fg" style="margin:0"><label>金額</label><input type="number" id="pax-amount" placeholder="10000" min="0"></div>
+      </div>
+      <div class="g2" style="margin-bottom:8px">
+        <div class="fg" style="margin:0"><label>支払方法</label>
+          <select id="pax-paymethod" onchange="onPaxPayChange()">
+            <option value="unpaid">⏳ 未払い</option>
+            <option value="transfer">🏦 振込済み</option>
+            <option value="cash">💴 現金済み</option>
+          </select>
+        </div>
+        <div class="fg" id="pax-date-wrap" style="margin:0;display:none"><label id="pax-date-label">🏦 振込日</label><input type="date" id="pax-date"></div>
+      </div>
+      <div class="fg" style="margin-bottom:8px"><label>メモ</label><input type="text" id="pax-memo" placeholder="例：企業枠、早割など"></div>
+      <button class="btn btn-lecture btn-block" onclick="addParticipant()">＋ 参加者を追加</button>
+    </div>
+  </div>
+
+  <!-- 参加者リスト -->
+  <div class="card">
+    <div class="flex ai jb" style="margin-bottom:10px">
+      <h2 style="margin:0">👥 参加者リスト</h2>
+      <div id="pax-attend-summary" style="font-size:.8rem;font-weight:700;color:var(--lecture);background:#eff6ff;padding:4px 10px;border-radius:20px;border:1px solid #93c5fd"></div>
+    </div>
+    <div id="pax-list"><div class="empty" style="padding:20px"><div class="ei">👥</div>参加者を追加してください</div></div>
+  </div>
+
+</div>
+
+<div id="tab-finance" class="tab-content">
+
+  <!-- イベント別収支（上部） -->
+  <div id="fin-per-event" style="margin-bottom:12px"></div>
+
+  <!-- 収支サマリー（入金済みのみ集計） -->
+  <div class="income-summary">
+    <div class="income-row">
+      <span class="ir-label"><span style="color:var(--lecture)">📡</span> 講演会収入（入金済み）
+        <span style="font-size:.7rem;color:var(--muted)" id="f-lecture-detail"></span>
+      </span>
+      <span class="ir-amt" style="color:var(--lecture)" id="f-lecture">¥0</span>
+    </div>
+    <div style="margin-left:16px;margin-bottom:6px">
+      <span style="font-size:.75rem;color:#7f1d1d;font-weight:600" id="f-lecture-unpaid"></span>
+    </div>
+    <div class="income-row">
+      <span class="ir-label"><span style="color:var(--yata)">🤲</span> 八咫活法収入（入金済み）
+        <span style="font-size:.7rem;color:var(--muted)" id="f-yata-detail"></span>
+      </span>
+      <span class="ir-amt" style="color:var(--yata)" id="f-yata">¥0</span>
+    </div>
+    <div style="margin-left:16px;margin-bottom:6px">
+      <span style="font-size:.75rem;color:#7f1d1d;font-weight:600" id="f-yata-unpaid"></span>
+    </div>
+    <div class="income-row total-row">
+      <span class="ir-label fw">📥 入金済み合計</span>
+      <span class="ir-amt fw" style="font-size:1.2rem" id="f-income-total">¥0</span>
+    </div>
+  </div>
+
+  <div class="expense-summary">
+    <div class="income-row" style="border-color:#fca5a5">
+      <span class="ir-label"><span style="color:var(--expense)">📤</span> 経費合計</span>
+      <span class="ir-amt" style="color:var(--expense)" id="f-expense">¥0</span>
+    </div>
+  </div>
+
+  <div class="profit-box" id="profit-box">
+    <div class="pl">純利益（講演会 + 八咫活法 − 経費）</div>
+    <div class="pv" id="f-profit">¥0</div>
+  </div>
+
+  <!-- 書籍販売チーム（別枠） -->
+  <div style="background:linear-gradient(135deg,#fff7ed,#ffedd5);border-radius:12px;padding:15px;border:2px solid #fed7aa;margin-bottom:14px">
+    <div style="font-size:.8rem;font-weight:700;color:var(--book);margin-bottom:10px">📚 書籍販売チーム（別枠・収支には含まれません）</div>
+    <div class="income-row" style="border-color:#fed7aa">
+      <span class="ir-label">書籍販売 総額</span>
+      <span class="ir-amt" style="color:var(--book)" id="f-book">¥0</span>
+    </div>
+    <div id="f-book-split" style="margin-top:8px"></div>
+  </div>
+
+  <!-- 経費入力 -->
+  <div class="card">
+    <h2>📤 経費を追加</h2>
+    <div class="g2">
+      <div class="fg"><label>金額</label><input type="number" id="fin-amount" placeholder="0" min="0"></div>
+      <div class="fg"><label>日付</label><input type="date" id="fin-date"></div>
+    </div>
+    <div class="g2">
+      <div class="fg"><label>カテゴリ</label><select id="fin-cat" onchange="onFinCatChange()"></select></div>
+      <div class="fg"><label>メモ</label><input type="text" id="fin-memo" placeholder="内容を入力"></div>
+    </div>
+    <div class="fg" id="fin-staff-wrap" style="display:none">
+      <label>👤 スタッフ名</label>
+      <input type="text" id="fin-staff" placeholder="例：田中さん">
+    </div>
+    <button class="btn btn-danger btn-block" onclick="addTx()">＋ 経費を追加</button>
+  </div>
+
+  <!-- 経費一覧 -->
+  <div class="card">
+    <div class="flex ai jb" style="margin-bottom:10px">
+      <h2 style="margin:0">📋 経費一覧</h2>
+      <button class="btn btn-sm btn-outline" onclick="exportFinCSV()">📥 CSV</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table><thead><tr><th>日付</th><th>カテゴリ</th><th>メモ</th><th>金額</th><th></th></tr></thead>
+      <tbody id="fin-tbody"></tbody></table>
+    </div>
+    <div id="fin-empty" class="empty"><div class="ei">💰</div>まだ経費がありません</div>
+  </div>
+
+  <!-- イベント収支を記録 -->
+  <div class="card" style="border:2px solid #c4b5fd;background:linear-gradient(135deg,#f5f3ff,#ede9fe)">
+    <h2 style="color:var(--primary)">📸 このイベントの収支を記録する</h2>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:10px">現時点の収支数字をスナップショットとして保存します。次のイベントに切り替えても過去の数字を確認できます。</p>
+    <div class="fg" style="margin-bottom:8px">
+      <label>記録メモ（省略可）</label>
+      <input type="text" id="arch-note" placeholder="例：第3回 健康セミナー 2025/4/5">
+    </div>
+    <button class="btn btn-block" style="background:var(--primary);color:#fff" onclick="doArchive()">📸 現在の収支を記録する</button>
+  </div>
+
+  <!-- イベント収支履歴 -->
+  <div class="card">
+    <h2>📋 イベント収支履歴</h2>
+    <div id="fin-archive-list"><div class="empty"><div class="ei">📊</div>まだ記録がありません</div></div>
+  </div>
+
+</div>
+
+<!-- ========== 書籍管理 ========== -->
+<div id="tab-books" class="tab-content">
+
+  <!-- 在庫サマリー -->
+  <div class="g3" id="stock-summary" style="margin-bottom:14px;display:none">
+    <div class="stat s-green"><div class="v" id="stk-ok">0</div><div class="l">在庫あり</div></div>
+    <div class="stat s-amber"><div class="v" id="stk-low">0</div><div class="l">⚠️ 残り少ない（3冊以下）</div></div>
+    <div class="stat s-red"><div class="v" id="stk-out">0</div><div class="l">🚫 売切れ</div></div>
+  </div>
+
+  <div class="card" id="p-form-card">
+    <h2 id="p-form-title">📚 書籍を登録</h2>
+    <div class="g2">
+      <div class="fg"><label>タイトル</label><input type="text" id="p-name" placeholder="例：〇〇入門"></div>
+      <div class="fg"><label>価格（税込）</label><input type="number" id="p-price" placeholder="1500" min="0"></div>
+    </div>
+    <div class="g2">
+      <div class="fg"><label>著者名</label><input type="text" id="p-author" placeholder="例：山田太郎"></div>
+      <div class="fg"><label>初期在庫数（冊）</label><input type="number" id="p-stock" placeholder="10" min="0"></div>
+    </div>
+    <!-- 表紙画像 -->
+    <div class="fg">
+      <label>表紙画像（写真 / PNG / JPG）</label>
+      <div id="cover-drop-zone" onclick="document.getElementById('p-cover-input').click()"
+        style="border:2px dashed var(--border);border-radius:10px;padding:16px;text-align:center;cursor:pointer;transition:all .2s;background:#fafafa;margin-top:4px">
+        <div id="cover-preview-wrap" style="display:none;margin-bottom:8px">
+          <img id="cover-preview-img" src="" alt="表紙プレビュー"
+            style="max-height:140px;max-width:100%;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.15)">
+        </div>
+        <div id="cover-placeholder">
+          <div style="font-size:2rem">📷</div>
+          <div style="font-size:.83rem;color:var(--muted);margin-top:4px">タップして表紙画像を選択</div>
+        </div>
+        <input type="file" id="p-cover-input" accept="image/*" style="display:none" onchange="onCoverSelected(event)">
+      </div>
+      <button type="button" id="cover-clear-btn" class="btn btn-sm btn-outline mt2" onclick="clearCover()" style="display:none">✕ 画像をクリア</button>
+    </div>
+    <button id="p-submit-btn" class="btn btn-book btn-block" onclick="addProduct()">＋ 書籍を登録</button>
+    <button id="p-cancel-btn" class="btn btn-outline btn-block mt2" onclick="cancelEditProduct()" style="display:none">✕ キャンセル</button>
+  </div>
+
+  <div class="card">
+    <h2>📦 登録済み書籍 &amp; 在庫</h2>
+    <div id="product-list"><div class="empty"><div class="ei">📚</div>書籍を登録してください</div></div>
+  </div>
+</div>
+
+<!-- ========== チーム ========== -->
+<div id="tab-team" class="tab-content">
+  <div class="card">
+    <h2>👥 書籍販売チーム 分配設定</h2>
+    <p style="font-size:.83rem;color:var(--muted);margin-bottom:12px">書籍の売上をメンバーごとの割合で自動計算します（合計100%）。</p>
+    <div class="flex ai jb" style="margin-bottom:5px">
+      <span style="font-size:.83rem;font-weight:600">設定済み合計</span>
+      <span id="ratio-badge" style="font-size:.97rem;font-weight:800;color:var(--book)">0%</span>
+    </div>
+    <div class="ratio-bar"><div class="ratio-fill" id="ratio-fill" style="width:0"></div></div>
+    <div id="ratio-warn" style="font-size:.73rem;color:var(--danger);margin-top:3px;display:none">⚠️ 合計が100%になるよう設定してください</div>
+    <div class="g2" style="margin-top:11px;margin-bottom:9px">
+      <div class="fg" style="margin:0"><label>名前 / 役割</label><input type="text" id="m-mname" placeholder="例：著者・山田"></div>
+      <div class="fg" style="margin:0"><label>分配割合（%）</label><input type="number" id="m-mratio" placeholder="60" min="1" max="100"></div>
+    </div>
+    <button class="btn btn-book btn-block" onclick="addMember()">＋ メンバーを追加</button>
+  </div>
+  <div class="card">
+    <h2>📋 登録メンバー</h2>
+    <div id="member-list"><div class="empty"><div class="ei">👥</div>メンバーを追加してください</div></div>
+  </div>
+  <div class="card">
+    <h2>💸 書籍販売 分配実績</h2>
+    <div id="book-dist"><div class="empty"><div class="ei">📊</div>売上データがありません</div></div>
+  </div>
+
+  <!-- 精算 -->
+  <div class="card" style="border:2px solid #fed7aa;background:linear-gradient(135deg,#fff7ed,#fffbeb)">
+    <h2 style="color:var(--book)">🧾 書籍精算</h2>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:10px">「精算する」を押すと現時点の分配額を記録します。リセット・修正があってもいつ精算したか履歴で確認できます。</p>
+    <div class="fg" style="margin-bottom:8px"><label>精算メモ（任意）</label><input type="text" id="settle-note" placeholder="例：第3回セミナー分"></div>
+    <button class="btn btn-book btn-block" onclick="doSettle()">🧾 現在の分配額を精算記録する</button>
+    <div id="settlement-list" style="margin-top:14px"></div>
+  </div>
+</div>
+
+<!-- ========== レポート ========== -->
+<div id="tab-report" class="tab-content">
+
+  <!-- 総収支サマリー -->
+  <div style="background:linear-gradient(135deg,#f8faff,#ede9fe);border-radius:14px;padding:16px;margin-bottom:14px;border:2px solid #c4b5fd">
+    <div style="font-size:.82rem;font-weight:700;color:var(--primary);margin-bottom:10px;text-align:center">📊 イベント総収支サマリー</div>
+    <div class="g2" style="margin-bottom:10px">
+      <div class="stat s-sky"><div class="v" id="rpt-lecture">¥0</div><div class="l">📡 講演会収入</div></div>
+      <div class="stat s-teal"><div class="v" id="rpt-yata">¥0</div><div class="l">🤲 八咫活法</div></div>
+    </div>
+    <div class="g2">
+      <div class="stat s-red"><div class="v" id="rpt-exp">¥0</div><div class="l">📤 経費</div></div>
+      <div class="stat" id="rpt-profit-box" style="background:#f5f3ff"><div class="v" id="rpt-profit" style="color:var(--primary)">¥0</div><div class="l">💎 純利益</div></div>
+    </div>
+  </div>
+
+  <!-- 書籍販売（別枠） -->
+  <div style="background:linear-gradient(135deg,#fff7ed,#ffedd5);border-radius:14px;padding:16px;margin-bottom:14px;border:2px solid #fed7aa">
+    <div style="font-size:.82rem;font-weight:700;color:var(--book);margin-bottom:10px;text-align:center">📚 書籍販売チーム（別枠・収支に含まれない）</div>
+    <div class="stat s-orange" style="margin-bottom:10px">
+      <div class="v" id="rpt-book">¥0</div><div class="l">書籍販売 総額</div>
+    </div>
+    <div id="rpt-book-split-inline"></div>
+  </div>
+
+  <!-- 書籍チーム分配 -->
+  <div class="card">
+    <h2>👥 書籍販売チーム 分配サマリー</h2>
+    <div id="rpt-team"><div class="empty"><div class="ei">👥</div>データがありません</div></div>
+  </div>
+
+  <!-- Charts -->
+  <div class="card">
+    <h2>📈 収入内訳（円グラフ）</h2>
+    <div class="chart-wrap"><canvas id="incomeChart"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>📉 経費カテゴリ別</h2>
+    <div class="chart-wrap"><canvas id="expChart"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>📚 書籍別売上ランキング</h2>
+    <div id="book-rank"><div class="empty"><div class="ei">🏆</div>データがありません</div></div>
+  </div>
+  <div class="card">
+    <h2>🤲 八咫活法 メニュー別売上</h2>
+    <div id="yata-rank"><div class="empty"><div class="ei">🌿</div>データがありません</div></div>
+  </div>
+
+  <!-- リアルタイム同期設定 -->
+  <div class="card" style="border:2px solid #f97316;background:linear-gradient(135deg,#fff7ed,#ffedd5)">
+    <h2 style="color:#c2410c">🔄 端末間リアルタイム同期</h2>
+    <div id="sync-status-bar" style="padding:8px 12px;border-radius:8px;margin-bottom:10px;font-size:.83rem;font-weight:700;background:#fef3c7;color:#92400e;border:1px solid #fcd34d">
+      ⚪ 未接続（このブラウザのみ保存中）
+    </div>
+    <div id="sync-connected-info" style="display:none;margin-bottom:10px;padding:9px 12px;background:#d1fae5;border-radius:8px;border:1px solid #6ee7b7">
+      <div style="font-size:.75rem;color:#065f46;font-weight:700">🔗 接続中のルーム</div>
+      <div style="font-size:.95rem;font-weight:800;color:#064e3b" id="sync-room-display"></div>
+    </div>
+    <!-- 接続フォーム -->
+    <div id="sync-form">
+      <div class="fg" style="margin-bottom:8px">
+        <label>Firebase Database URL</label>
+        <input type="text" id="sync-db-url" placeholder="https://xxxx-default-rtdb.firebaseio.com/" style="font-size:.8rem">
+      </div>
+      <div class="fg" style="margin-bottom:8px">
+        <label>ルームコード（チームで共通の合言葉）</label>
+        <input type="text" id="sync-room" placeholder="例：yamada2025" style="font-size:.9rem;font-weight:700">
+      </div>
+      <button class="btn btn-block" style="background:#f97316;color:#fff;margin-bottom:6px" onclick="connectSync()">🔗 同期を開始する</button>
+    </div>
+    <button id="sync-disconnect-btn" class="btn btn-block" style="display:none;background:#f3f4f6;color:#374151;margin-top:6px" onclick="disconnectSync()">切断する</button>
+    <details style="margin-top:12px">
+      <summary style="font-size:.78rem;color:#c2410c;cursor:pointer;font-weight:700">📋 初回設定手順（クリックで表示）</summary>
+      <div style="margin-top:8px;font-size:.78rem;line-height:1.7;color:#374151;background:#fff;padding:10px;border-radius:8px">
+        <b>① Firebase プロジェクト作成</b><br>
+        <a href="https://console.firebase.google.com" target="_blank" style="color:#f97316">console.firebase.google.com</a> を開く<br>
+        →「プロジェクトを作成」→ 名前を入力（例：event-app）→ 作成<br><br>
+        <b>② Realtime Database を有効化</b><br>
+        左メニュー「構築」→「Realtime Database」→「データベースを作成」<br>
+        →「テストモードで開始」→「有効にする」<br><br>
+        <b>③ Database URL をコピー</b><br>
+        データベース画面上部に表示される<br>
+        <span style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:monospace">https://xxxx-default-rtdb.firebaseio.com/</span><br>
+        これを上の「Firebase Database URL」欄に貼り付ける<br><br>
+        <b>④ ルームコードを決める</b><br>
+        チームで共通の好きな文字列を入力（例：yamada2025）<br>
+        全員同じルームコードを使うことでデータが共有されます
+      </div>
+    </details>
+  </div>
+
+  <!-- データバックアップ -->
+  <div class="card" style="border:2px solid #6366f1;background:linear-gradient(135deg,#f5f3ff,#ede9fe)">
+    <h2 style="color:#4338ca">📲 データバックアップ</h2>
+    <button class="btn btn-block" style="background:#4338ca;color:#fff;margin-bottom:8px" onclick="exportData()">📤 全データをエクスポート（JSON）</button>
+    <div style="position:relative">
+      <button class="btn btn-block" style="background:#059669;color:#fff" onclick="el2('import-file').click()">📥 データをインポート（JSON）</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(this)">
+    </div>
+  </div>
+
+</div>
+
+<!-- 完了モーダル -->
+<div class="modal-overlay" id="comp-modal">
+  <div class="modal">
+    <h3 style="color:var(--book)">✅ 書籍会計完了</h3>
+    <div class="comp-total" id="m-total"></div>
+    <div class="comp-change" id="m-change"></div>
+    <div id="m-split-wrap" style="display:none">
+      <div class="section-lbl" style="margin-bottom:9px">📊 書籍販売チーム 分配内訳</div>
+      <div class="split-panel"><div id="m-split-rows"></div></div>
+    </div>
+    <button class="btn btn-book btn-block mt3" onclick="closeModal()">閉じる</button>
+  </div>
+</div>
+
+<!-- 施術完了モーダル -->
+<div class="modal-overlay" id="yata-modal">
+  <div class="modal">
+    <h3 style="color:var(--yata)">🤲 施術記録完了</h3>
+    <div style="background:#f0fdfa;border-radius:10px;padding:13px;margin-bottom:13px">
+      <div id="ym-content"></div>
+    </div>
+    <button class="btn btn-yata btn-block" onclick="closeYataModal()">閉じる</button>
+  </div>
+</div>
+
+<!-- 施術編集モーダル -->
+<div class="modal-overlay" id="treat-edit-modal" onclick="if(event.target===this)closeTreatmentEditModal()">
+  <div class="modal" style="max-width:400px;width:100%">
+    <h3 style="color:var(--yata);margin-bottom:14px">🌿 施術を編集</h3>
+    <div class="g2">
+      <div class="fg"><label>施術日</label><input type="date" id="te-date"></div>
+      <div class="fg"><label>金額（円）</label><input type="number" id="te-amount" min="0" placeholder="5000"></div>
+    </div>
+    <div class="g2">
+      <div class="fg"><label>お客様</label><input type="text" id="te-custname" placeholder="例：山田 太郎"></div>
+      <div class="fg"><label>メニュー</label>
+        <select id="te-menu">
+          <option value="">── メニューを選択 ──</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg"><label>メモ</label><textarea id="te-memo" rows="3" placeholder="例：首・肩が中心、次回は全身調整" style="resize:vertical"></textarea></div>
+    <div class="fg"><label>来院状況</label>
+      <select id="te-attended">
+        <option value="true">✅ 来院済み</option>
+        <option value="false">⬜ 欠席（キャンセル）</option>
+      </select>
+    </div>
+    <input type="hidden" id="te-id">
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn btn-yata" style="flex:1" onclick="saveTreatmentEdit()">💾 保存する</button>
+      <button class="btn btn-outline" onclick="closeTreatmentEditModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- 参加者編集モーダル -->
+<div class="modal-overlay" id="pax-edit-modal" onclick="if(event.target===this)closeParticipantEditModal()">
+  <div class="modal" style="max-width:400px;width:100%">
+    <h3 style="color:var(--lecture);margin-bottom:14px">✏️ 参加者を編集</h3>
+    <div class="fg"><label>氏名</label><input type="text" id="pe-name" placeholder="例：山田 太郎"></div>
+    <div class="g2">
+      <div class="fg"><label>金額（円）</label><input type="number" id="pe-amount" min="0" placeholder="10000"></div>
+      <div class="fg"><label>支払方法</label>
+        <select id="pe-paymethod" onchange="onPePayChange()">
+          <option value="unpaid">⏳ 未払い</option>
+          <option value="transfer">🏦 振込済み</option>
+          <option value="cash">💴 現金済み</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg" id="pe-transfer-date-wrap" style="display:none"><label>🏦 振込日</label><input type="date" id="pe-transfer-date"></div>
+    <div class="fg"><label>メモ</label><input type="text" id="pe-memo" placeholder="例：早割など"></div>
+    <div class="fg">
+      <label>出席状況</label>
+      <select id="pe-attended">
+        <option value="true">✅ 出席確認済み</option>
+        <option value="false">⬜ 未確認</option>
+      </select>
+    </div>
+    <input type="hidden" id="pe-id">
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn btn-lecture" style="flex:1" onclick="saveParticipantEdit()">💾 保存する</button>
+      <button class="btn btn-outline" onclick="closeParticipantEditModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ========== STATE ==========
+const S = {
+  products: [],
+  cart: [],
+  sales: [],
+  txs: [],            // 経費
+  participants: [],   // 講演会参加者（支払管理）
+  menus: [],          // 八咫活法メニュー
+  customers: [],      // お客様
+  treatments: [],     // 施術記録
+  members: [],        // 書籍チーム
+  finType: 'lecture',
+  selMenuId: null,
+  selCustId: null,
+  yataPayMethod: 'unpaid',  // 施術記録の選択中支払方法
+  cats: {
+    expense: ['仕入れ','会場費','設備費','印刷費','スタッフ支払い','人件費','広告費','交通費','旅費','宿泊費','食費','その他経費']
+  },
+  events: [],         // イベント一覧 [{id, name, date}]
+  currentEventId: null, // 現在選択中のイベントID
+  settlements: [],    // 書籍精算履歴 [{id, date, total, split[], note}]
+  finArchives: []     // イベント収支スナップショット履歴
+};
+let chartIncome=null, chartExp=null;
+let yataFilter = 'all'; // 'today' | 'week' | 'all' | 'custom'
+
+// ========== STORAGE: IndexedDB（メイン）+ localStorage（バックアップ） ==========
+const IDB_NAME = 'EventAppDB_v1';
+const IDB_STORE = 'state';
+const IDB_KEY = 'eApp3';
+let _idb = null;
+
+function openIDB(){
+  return new Promise((resolve, reject)=>{
+    if(_idb){ resolve(_idb); return; }
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
+    req.onsuccess = e => { _idb = e.target.result; resolve(_idb); };
+    req.onerror = e => reject(e.target.error);
+  });
+}
+function idbSave(data){
+  openIDB().then(db=>{
+    const tx = db.transaction(IDB_STORE,'readwrite');
+    tx.objectStore(IDB_STORE).put(JSON.parse(JSON.stringify(data)), IDB_KEY);
+  }).catch(e=>console.warn('IDB save error:',e));
+}
+function idbLoad(){
+  return openIDB().then(db=>new Promise((resolve,reject)=>{
+    const tx = db.transaction(IDB_STORE,'readonly');
+    const req = tx.objectStore(IDB_STORE).get(IDB_KEY);
+    req.onsuccess = e => resolve(e.target.result||null);
+    req.onerror = reject;
+  })).catch(()=>null);
+}
+
+function save(){
+  const data = JSON.parse(JSON.stringify(S));
+  // IndexedDB（メイン保存）
+  idbSave(data);
+  // localStorage（バックアップ）
+  try{ localStorage.setItem('eApp3', JSON.stringify(data)); }catch(e){}
+  if(fbRef){ fbRef.set(data).catch(e=>console.warn('Firebase save error:',e)); }
+}
+async function load(){
+  // IndexedDB を優先
+  try{
+    const d = await idbLoad();
+    if(d){ Object.assign(S, d); return; }
+  }catch(e){}
+  // フォールバック: localStorage
+  try{ const d=localStorage.getItem('eApp3'); if(d){ Object.assign(S,JSON.parse(d)); idbSave(S); } }catch(e){}
+}
+
+// ========== FIREBASE 同期 ==========
+let fbRef = null;
+let fbListening = false;
+let syncIgnoreNext = false; // 自分のsaveによるリモートイベントを無視
+
+function connectSync(){
+  const url = v('sync-db-url').trim().replace(/\/+$/, '');
+  const room = v('sync-room').trim().replace(/[.#$\[\]]/g,'_');
+  if(!url){ toast('⚠️ Database URLを入力してください'); return; }
+  if(!room){ toast('⚠️ ルームコードを入力してください'); return; }
+  if(!url.startsWith('https://')){ toast('⚠️ URLの形式が正しくありません'); return; }
+  try{
+    if(!firebase.apps.length){
+      firebase.initializeApp({ databaseURL: url });
+    }
+    fbRef = firebase.database().ref('rooms/'+room+'/data');
+    // 初回: クラウドにデータがあれば取得、なければアップロード
+    fbRef.once('value').then(snap=>{
+      const remote = snap.val();
+      if(remote && Object.keys(remote).length){
+        Object.assign(S, remote);
+        save();
+        refreshAll();
+        toast('✅ クラウドのデータを読み込みました');
+      } else {
+        // クラウドが空なら現在のデータをアップロード
+        fbRef.set(JSON.parse(JSON.stringify(S)));
+        toast('✅ 現在のデータをクラウドに保存しました');
+      }
+      startSyncListener(room, url);
+    }).catch(e=>{ toast('⚠️ 接続エラー: '+e.message); fbRef=null; });
+  }catch(e){ toast('⚠️ Firebase初期化エラー: '+e.message); }
+}
+
+function startSyncListener(room, url){
+  if(fbListening) return;
+  fbListening = true;
+  fbRef.on('value', snap=>{
+    if(syncIgnoreNext){ syncIgnoreNext=false; return; }
+    const remote = snap.val();
+    if(remote){
+      Object.assign(S, remote);
+      idbSave(S);
+      try{ localStorage.setItem('eApp3', JSON.stringify(S)); }catch(e){}
+      refreshAll();
+    }
+  });
+  // 設定をlocalStorageに保存
+  try{ localStorage.setItem('eApp3sync', JSON.stringify({url, room})); }catch(e){}
+  updateSyncUI(room);
+  toast('🔗 同期を開始しました！');
+}
+
+function disconnectSync(){
+  if(fbRef){ fbRef.off(); fbRef=null; }
+  fbListening=false;
+  try{ localStorage.removeItem('eApp3sync'); }catch(e){}
+  updateSyncUI(null);
+  toast('切断しました');
+}
+
+function updateSyncUI(room){
+  const connected = !!room;
+  const bar = el2('sync-status-bar');
+  const info = el2('sync-connected-info');
+  const form = el2('sync-form');
+  const discBtn = el2('sync-disconnect-btn');
+  if(bar) bar.innerHTML = connected
+    ? '🟢 同期中 — 全端末のデータが自動で同期されます'
+    : '⚪ 未接続（このブラウザのみ保存中）';
+  if(bar) bar.style.cssText = connected
+    ? 'padding:8px 12px;border-radius:8px;margin-bottom:10px;font-size:.83rem;font-weight:700;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7'
+    : 'padding:8px 12px;border-radius:8px;margin-bottom:10px;font-size:.83rem;font-weight:700;background:#fef3c7;color:#92400e;border:1px solid #fcd34d';
+  if(info) info.style.display = connected?'block':'none';
+  const rd = el2('sync-room-display'); if(rd&&room) rd.textContent = room;
+  if(form) form.style.display = connected?'none':'block';
+  if(discBtn) discBtn.style.display = connected?'block':'none';
+}
+
+function refreshAll(){
+  renderProducts(); renderProductGrid(); renderStockSummary();
+  renderSalesHistory(); refreshRegisterStats();
+  renderTxList(); refreshFinance(); renderCats();
+  renderMembers(); renderRatioBar(); renderBookDist(); renderSettlements();
+  renderMenuGrid(); renderMenuList(); renderCustomerMini();
+  renderTreatments(); renderYataPayments(); refreshYataStats();
+  renderParticipants(); renderEventList(); updateEvtBanners();
+  renderArchives();
+}
+
+function restoreSync(){
+  try{
+    const d=localStorage.getItem('eApp3sync');
+    if(!d) return;
+    const {url, room} = JSON.parse(d);
+    if(!url||!room) return;
+    set('sync-db-url', url); set('sync-room', room);
+    connectSync();
+  }catch(e){}
+}
+
+// ========== クリップボード同期 ==========
+function syncCopy(){
+  try{
+    const json = JSON.stringify(S);
+    // LZString相当の軽量圧縮（btoa）
+    const encoded = btoa(encodeURIComponent(json));
+    navigator.clipboard.writeText(encoded).then(()=>{
+      el2('sync-modal-title').textContent='✅ コピー完了！';
+      el2('sync-modal-body').innerHTML=`
+        <div style="background:#d1fae5;border-radius:10px;padding:14px;text-align:center;margin-bottom:12px">
+          <div style="font-size:1.5rem;margin-bottom:6px">📋</div>
+          <div style="font-weight:700;color:#065f46;font-size:.95rem">データをクリップボードにコピーしました</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:9px;padding:12px;font-size:.83rem;line-height:1.7;color:#374151">
+          <b>次の手順：</b><br>
+          1. ブラウザで <code style="background:#e2e8f0;padding:1px 5px;border-radius:4px">index.html</code> を開く<br>
+          2. ヘッダーの <b>「📥 貼付け」</b> ボタンを押す<br>
+          3. 貼り付け確認画面で「OK」を押す<br>
+          <br>
+          <span style="color:var(--muted)">※ データ件数: 書籍${S.products.length}冊 / 売上${S.sales.length}件 / 施術${S.treatments.length}件</span>
+        </div>`;
+      el2('sync-modal').classList.add('open');
+    }).catch(()=>{
+      // クリップボードAPIが使えない場合はテキストエリアで表示
+      const encoded2 = btoa(encodeURIComponent(json));
+      el2('sync-modal-title').textContent='📋 データコード（コピーしてください）';
+      el2('sync-modal-body').innerHTML=`
+        <p style="font-size:.83rem;color:var(--muted);margin-bottom:8px">以下のテキストをすべて選択してコピーしてください：</p>
+        <textarea style="width:100%;height:90px;font-size:.72rem;font-family:monospace;background:#f1f5f9;border:1px solid var(--border);border-radius:8px;padding:8px" readonly onclick="this.select()">${encoded2}</textarea>
+        <button class="btn btn-primary btn-block" style="margin-top:8px" onclick="this.previousElementSibling.select();document.execCommand('copy');toast('✅ コピーしました')">全選択してコピー</button>`;
+      el2('sync-modal').classList.add('open');
+    });
+  }catch(e){ toast('⚠️ コピーに失敗しました: '+e.message); }
+}
+
+function syncPaste(){
+  el2('sync-modal-title').textContent='📥 データを貼り付けて同期';
+  el2('sync-modal-body').innerHTML=`
+    <p style="font-size:.83rem;color:#374151;margin-bottom:10px">
+      別の端末/Coworkでコピーしたデータコードを貼り付けてください。<br>
+      <span style="color:var(--danger);font-weight:600">⚠️ 現在のデータは上書きされます。</span>
+    </p>
+    <textarea id="paste-area" style="width:100%;height:100px;font-size:.72rem;font-family:monospace;background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;padding:10px;resize:vertical" placeholder="コードを貼り付けてください（Ctrl+V / Cmd+V）"></textarea>
+    <button class="btn btn-primary btn-block" style="margin-top:10px" onclick="doSyncPaste()">📥 このデータで上書き同期する</button>`;
+  el2('sync-modal').classList.add('open');
+  setTimeout(()=>{ const ta=el2('paste-area'); if(ta) ta.focus(); },200);
+}
+
+function doSyncPaste(){
+  const raw = (el2('paste-area')||{}).value||'';
+  if(!raw.trim()){ toast('⚠️ データが入力されていません'); return; }
+  try{
+    const json = decodeURIComponent(atob(raw.trim()));
+    const data = JSON.parse(json);
+    if(typeof data!=='object'||!data.products) throw new Error('形式が正しくありません');
+    if(!confirm(`このデータで上書きしますか？\n\n書籍: ${data.products?.length||0}冊\n売上: ${data.sales?.length||0}件\n施術: ${data.treatments?.length||0}件\n\n現在のデータは消えます。よろしいですか？`)) return;
+    Object.assign(S, data);
+    save(); refreshAll();
+    closeSyncModal();
+    toast('✅ データを同期しました！');
+  }catch(e){ toast('⚠️ データの読み込みに失敗しました。正しいコードを貼り付けてください。'); }
+}
+
+function closeSyncModal(){ el2('sync-modal').classList.remove('open'); }
+
+// ========== データ エクスポート / インポート ==========
+function exportData(){
+  const json = JSON.stringify(S, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'event-app-data-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+  toast('✅ データをエクスポートしました');
+}
+function importData(input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const data = JSON.parse(e.target.result);
+      Object.assign(S, data);
+      save(); refreshAll();
+      toast('✅ データをインポートしました');
+    }catch(err){ toast('⚠️ ファイルの読み込みに失敗しました'); }
+    input.value='';
+  };
+  reader.readAsText(file);
+}
+
+// ========== TABS ==========
+function goTab(tab, btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+  if(tab==='lecture'){ renderEventList(); updateEvtBanners(); renderParticipants(); refreshFinance(); }
+  if(tab==='finance'){ renderCats(); refreshFinance(); renderArchives(); }
+  if(tab==='report') renderReport();
+  if(tab==='team'){ renderBookDist(); renderSettlements(); }
+  if(tab==='yata'){ updateEvtBanners(); renderMenuGrid(); renderCustomerMini(); renderTreatments(); renderYataPayments(); refreshYataStats(); }
+}
+
+// ========== TOAST / MODAL ==========
+function toast(msg,d=2400){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),d); }
+function closeModal(){ document.getElementById('comp-modal').classList.remove('open'); }
+function closeYataModal(){ document.getElementById('yata-modal').classList.remove('open'); }
+
+// ========== PRODUCTS ==========
+let editingProductId = null;
+let pendingCoverBase64 = null; // フォームで選択中の表紙画像
+
+function onCoverSelected(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    pendingCoverBase64=ev.target.result;
+    el2('cover-preview-img').src=pendingCoverBase64;
+    el2('cover-preview-wrap').style.display='block';
+    el2('cover-placeholder').style.display='none';
+    el2('cover-clear-btn').style.display='inline-flex';
+    el2('cover-drop-zone').style.borderColor='var(--book)';
+  };
+  reader.readAsDataURL(file);
+}
+function clearCover(){
+  pendingCoverBase64=null;
+  el2('p-cover-input').value='';
+  el2('cover-preview-wrap').style.display='none';
+  el2('cover-placeholder').style.display='block';
+  el2('cover-clear-btn').style.display='none';
+  el2('cover-drop-zone').style.borderColor='var(--border)';
+}
+function setCoverPreview(src){
+  if(src){
+    el2('cover-preview-img').src=src;
+    el2('cover-preview-wrap').style.display='block';
+    el2('cover-placeholder').style.display='none';
+    el2('cover-clear-btn').style.display='inline-flex';
+    el2('cover-drop-zone').style.borderColor='var(--book)';
+  } else { clearCover(); }
+}
+
+function addProduct(){
+  const name=v('p-name').trim(), price=parseInt(v('p-price')), author=v('p-author').trim();
+  const stockVal=v('p-stock'); const stock=stockVal===''?null:parseInt(stockVal);
+  if(!name||isNaN(price)||price<=0){ toast('⚠️ タイトルと価格を入力してください'); return; }
+  if(editingProductId !== null){
+    const p=S.products.find(x=>x.id===editingProductId);
+    if(p){
+      p.name=name; p.price=price; p.author=author;
+      if(stock!==null) p.stock=stock;
+      if(pendingCoverBase64!==null) p.cover=pendingCoverBase64;
+    }
+    toast('✅ 書籍を更新しました');
+    cancelEditProduct();
+  } else {
+    S.products.push({id:Date.now(),name,price,author,emoji:'📗',cover:pendingCoverBase64||null,stock:stock??null,sold:0});
+    toast('✅ 書籍を登録しました');
+    ['p-name','p-price','p-author','p-stock'].forEach(id=>set(id,''));
+    clearCover();
+  }
+  save(); renderProducts(); renderProductGrid(); renderStockSummary();
+}
+function editProduct(id){
+  const p=S.products.find(x=>x.id===id); if(!p) return;
+  editingProductId=id;
+  pendingCoverBase64=null; // 編集開始時はリセット（既存画像はp.coverで保持）
+  set('p-name',p.name); set('p-price',p.price); set('p-author',p.author||'');
+  set('p-stock', p.stock!==null&&p.stock!==undefined ? p.stock : '');
+  setCoverPreview(p.cover||null);
+  el2('p-submit-btn').textContent='💾 変更を保存';
+  el2('p-submit-btn').className='btn btn-warning btn-block';
+  el2('p-cancel-btn').style.display='block';
+  el2('p-form-title').textContent='✏️ 書籍を編集';
+  el2('p-form-card').scrollIntoView({behavior:'smooth',block:'start'});
+  renderProducts();
+}
+function cancelEditProduct(){
+  editingProductId=null;
+  pendingCoverBase64=null;
+  ['p-name','p-price','p-author','p-stock'].forEach(id=>set(id,''));
+  clearCover();
+  el2('p-submit-btn').textContent='＋ 書籍を登録';
+  el2('p-submit-btn').className='btn btn-book btn-block';
+  el2('p-cancel-btn').style.display='none';
+  el2('p-form-title').textContent='📚 書籍を登録';
+  renderProducts();
+}
+function adjustStock(id, delta){
+  const p=S.products.find(x=>x.id===id); if(!p) return;
+  if(p.stock===null||p.stock===undefined) p.stock=0;
+  p.stock=Math.max(0, p.stock+delta);
+  save(); renderProducts(); renderProductGrid(); renderStockSummary();
+  toast(`📦 在庫を更新しました（残り ${p.stock} 冊）`);
+}
+function deleteProduct(id){
+  if(editingProductId===id) cancelEditProduct();
+  S.products=S.products.filter(p=>p.id!==id);
+  save(); renderProducts(); renderProductGrid(); renderStockSummary();
+  toast('🗑 書籍を削除しました');
+}
+
+function stockBadge(p){
+  if(p.stock===null||p.stock===undefined) return '<span style="font-size:.75rem;color:var(--muted)">－</span>';
+  if(p.stock===0) return '<span style="background:#fee2e2;color:#991b1b;padding:3px 8px;border-radius:12px;font-size:.75rem;font-weight:700">🚫 売切れ</span>';
+  if(p.stock<=3)  return `<span style="background:#fef3c7;color:#92400e;padding:3px 8px;border-radius:12px;font-size:.75rem;font-weight:700">⚠️ 残り ${p.stock} 冊</span>`;
+  return `<span style="background:#d1fae5;color:#065f46;padding:3px 8px;border-radius:12px;font-size:.75rem;font-weight:700">${p.stock} 冊</span>`;
+}
+
+function renderStockSummary(){
+  const tracked=S.products.filter(p=>p.stock!==null&&p.stock!==undefined);
+  if(!tracked.length){ el2('stock-summary').style.display='none'; return; }
+  el2('stock-summary').style.display='grid';
+  el2('stk-ok').textContent=tracked.filter(p=>p.stock>3).length;
+  el2('stk-low').textContent=tracked.filter(p=>p.stock>0&&p.stock<=3).length;
+  el2('stk-out').textContent=tracked.filter(p=>p.stock===0).length;
+}
+
+function renderProducts(){
+  const el=el2('product-list');
+  if(!S.products.length){ el.innerHTML='<div class="empty"><div class="ei">📚</div>書籍を登録してください</div>'; return; }
+  el.innerHTML=S.products.map(p=>`
+    <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);${editingProductId===p.id?'background:#fffbeb;border-radius:8px;padding:12px;margin:-2px;':''}${p.stock===0?'opacity:.6;':''}">
+      <!-- 表紙 -->
+      <div style="flex-shrink:0">
+        ${p.cover
+          ? `<img src="${p.cover}" class="book-cover" alt="${p.name}">`
+          : `<div style="width:54px;height:72px;border-radius:5px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:1.8rem;border:1px solid var(--border)">${p.emoji||'📗'}</div>`
+        }
+      </div>
+      <!-- 情報 -->
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:.92rem">${p.name}${editingProductId===p.id?' <span style="font-size:.7rem;color:var(--warning);font-weight:700">✏️編集中</span>':''}</div>
+        <div class="text-m">${p.author||'著者未設定'}</div>
+        <div style="margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-weight:800;color:var(--book);font-size:.92rem">¥${p.price.toLocaleString()}</span>
+          ${stockBadge(p)}
+        </div>
+        ${p.stock!==null&&p.stock!==undefined?`
+        <div style="display:flex;align-items:center;gap:4px;margin-top:6px">
+          <span class="text-m">在庫調整：</span>
+          <button class="qb" onclick="adjustStock(${p.id},-1)">−</button>
+          <button class="qb" onclick="adjustStock(${p.id},1)">＋</button>
+          <button class="qb" onclick="adjustStock(${p.id},10)" style="font-size:.7rem;width:auto;padding:0 7px">+10</button>
+        </div>`:''}
+      </div>
+      <!-- 操作 -->
+      <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
+        <button class="btn btn-sm btn-warning" onclick="editProduct(${p.id})">✏️ 編集</button>
+        <button class="btn btn-sm btn-danger"  onclick="deleteProduct(${p.id})">削除</button>
+      </div>
+    </div>`).join('');
+}
+function renderProductGrid(){
+  const el=el2('product-grid');
+  if(!S.products.length){ el.innerHTML='<div class="empty" style="grid-column:1/-1;padding:18px">「書籍」タブで登録してください</div>'; return; }
+  el.innerHTML=S.products.map(p=>{
+    const hasStock=p.stock!==null&&p.stock!==undefined;
+    const outOfStock=hasStock&&p.stock===0;
+    const lowStock=hasStock&&p.stock>0&&p.stock<=3;
+    const stockLabel=outOfStock?'<div style="font-size:.68rem;color:#991b1b;font-weight:700;margin-top:2px">🚫 売切れ</div>':
+                     lowStock?`<div style="font-size:.68rem;color:#92400e;font-weight:700;margin-top:2px">⚠️ 残り${p.stock}冊</div>`:
+                     hasStock?`<div style="font-size:.68rem;color:#065f46;margin-top:2px">在庫${p.stock}冊</div>`:'';
+    const coverHtml=p.cover
+      ? `<img src="${p.cover}" class="book-cover-sm" alt="${p.name}" style="margin-bottom:4px">`
+      : `<div style="font-size:1.9rem">${p.emoji||'📗'}</div>`;
+    return `<button class="prod-btn" onclick="${outOfStock?'toast(\'🚫 在庫切れです\')':'addToCart('+p.id+')'}"
+      style="display:flex;flex-direction:column;align-items:center;${outOfStock?'opacity:.5;cursor:not-allowed;':''}${lowStock?'border-color:#f59e0b;':''}">
+      ${coverHtml}
+      <div class="n" style="text-align:center">${p.name}</div>
+      ${p.author?`<div style="font-size:.65rem;color:var(--muted)">${p.author}</div>`:''}
+      <div class="p">¥${p.price.toLocaleString()}</div>
+      ${stockLabel}
+    </button>`;
+  }).join('');
+}
+
+// ========== CART ==========
+function addToCart(id){
+  const p=S.products.find(x=>x.id===id); if(!p) return;
+  const ex=S.cart.find(x=>x.id===id);
+  if(ex) ex.qty++; else S.cart.push({...p,qty:1});
+  renderCart();
+}
+function chgQty(id,d){ const it=S.cart.find(x=>x.id===id); if(!it) return; it.qty+=d; if(it.qty<=0) S.cart=S.cart.filter(x=>x.id!==id); renderCart(); }
+function clearCart(){ S.cart=[]; set('recv-amt','0'); renderCart(); calcChange(); hideSplitPrev(); }
+function cartTotal(){ return S.cart.reduce((s,c)=>s+c.price*c.qty,0); }
+function renderCart(){
+  const el=el2('cart-items'), tot=cartTotal();
+  if(!S.cart.length){ el.innerHTML='<div class="empty"><div class="ei">📚</div>書籍を選択してください</div>'; }
+  else el.innerHTML=S.cart.map(c=>`<div class="cart-item"><span style="font-size:1.25rem">${c.emoji}</span><span class="ci-name">${c.name}</span><div class="qc"><button class="qb" onclick="chgQty(${c.id},-1)">−</button><span class="qn">${c.qty}</span><button class="qb" onclick="chgQty(${c.id},1)">＋</button></div><span class="ci-sub">¥${(c.price*c.qty).toLocaleString()}</span></div>`).join('');
+  el2('cart-total').textContent='¥'+tot.toLocaleString();
+  calcChange(); updateSplitPrev(tot);
+}
+
+// ========== PAYMENT ==========
+function calcChange(){
+  const tot=cartTotal(), recv=parseInt(v('recv-amt'))||0, ch=recv-tot;
+  const el=el2('change-amt'); el.textContent='¥'+Math.max(0,ch).toLocaleString();
+  el.style.color=ch<0?'#dc2626':'#92400e';
+}
+function setRecv(a){ set('recv-amt',a); calcChange(); }
+function setExact(){ set('recv-amt',cartTotal()); calcChange(); }
+
+function calcSplit(tot){ return S.members.map(m=>({name:m.name,ratio:m.ratio,amount:Math.floor(tot*m.ratio/100)})); }
+function updateSplitPrev(tot){
+  if(!S.members.length||tot===0){ hideSplitPrev(); return; }
+  const rows=calcSplit(tot);
+  el2('split-preview').style.display='block';
+  el2('split-preview-rows').innerHTML=rows.map(r=>`<div class="split-row"><span class="mn">${r.name}<span class="pct">（${r.ratio}%）</span></span><span class="sa">¥${r.amount.toLocaleString()}</span></div>`).join('');
+}
+function hideSplitPrev(){ el2('split-preview').style.display='none'; }
+
+function completeSale(){
+  const tot=cartTotal(); if(tot===0){ toast('⚠️ カートが空です'); return; }
+  const recv=parseInt(v('recv-amt'))||0; if(recv<tot){ toast('⚠️ 受取金額が足りません'); return; }
+  const ch=recv-tot, now=new Date(), split=calcSplit(tot);
+  const sale={id:Date.now(),time:now.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}),date:now.toLocaleDateString('ja-JP'),dateKey:now.toISOString().slice(0,10),items:S.cart.map(c=>({...c})),total:tot,received:recv,change:ch,split,totalBooks:S.cart.reduce((s,c)=>s+c.qty,0)};
+  // 在庫を自動減算
+  sale.items.forEach(item=>{
+    const p=S.products.find(x=>x.id===item.id);
+    if(p&&p.stock!==null&&p.stock!==undefined){ p.stock=Math.max(0,p.stock-item.qty); if(!p.sold) p.sold=0; p.sold+=item.qty; }
+  });
+  S.sales.unshift(sale); save(); clearCart(); renderSalesHistory(); refreshRegisterStats(); renderProductGrid(); renderStockSummary();
+  el2('m-total').textContent='合計 ¥'+tot.toLocaleString();
+  el2('m-change').textContent='お釣り ¥'+ch.toLocaleString();
+  if(split.length){ el2('m-split-wrap').style.display='block'; el2('m-split-rows').innerHTML=split.map(r=>`<div class="split-row"><span class="mn">${r.name}<span class="pct">（${r.ratio}%）</span></span><span class="sa">¥${r.amount.toLocaleString()}</span></div>`).join(''); }
+  else el2('m-split-wrap').style.display='none';
+  document.getElementById('comp-modal').classList.add('open');
+}
+function renderSalesHistory(){
+  const tb=el2('sales-tbody'), emp=el2('sales-empty');
+  if(!S.sales.length){ tb.innerHTML=''; emp.style.display='block'; return; }
+  emp.style.display='none';
+  tb.innerHTML=S.sales.slice(0,50).map(s=>`<tr><td class="text-m">${s.time}</td><td style="max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.items.map(i=>`${i.emoji}${i.name}×${i.qty}`).join(' ')}</td><td class="fw" style="color:var(--book)">¥${s.total.toLocaleString()}</td><td>¥${s.received.toLocaleString()}</td><td style="color:#92400e">¥${s.change.toLocaleString()}</td><td><button class="btn btn-sm btn-danger" onclick="delSale(${s.id})">削除</button></td></tr>`).join('');
+}
+function delSale(id){ S.sales=S.sales.filter(s=>s.id!==id); save(); renderSalesHistory(); refreshRegisterStats(); toast('🗑 削除しました'); }
+function refreshRegisterStats(){
+  const today=new Date().toISOString().slice(0,10), ts=S.sales.filter(s=>s.dateKey===today);
+  const tot=ts.reduce((s,t)=>s+t.total,0), cnt=ts.length, books=ts.reduce((s,t)=>s+(t.totalBooks||0),0);
+  el2('r-today').textContent='¥'+tot.toLocaleString();
+  el2('r-count').textContent=cnt;
+  el2('r-avg').textContent=cnt>0?'¥'+Math.round(tot/cnt).toLocaleString():'¥0';
+  el2('r-books').textContent=books;
+}
+
+// ========== 八咫活法 MENUS ==========
+let editingMenuId = null;
+function addMenu(){
+  const name=v('m-name'), price=parseInt(v('m-price')), duration=parseInt(v('m-duration'))||0;
+  if(!name||isNaN(price)||price<0){ toast('⚠️ メニュー名と料金を入力してください'); return; }
+  if(editingMenuId!==null){
+    // 編集モード：既存メニューを更新
+    const m=S.menus.find(x=>x.id===editingMenuId);
+    if(m){ m.name=name; m.price=price; m.duration=duration; }
+    editingMenuId=null;
+    el2('m-submit-btn').textContent='＋ メニューを追加';
+    el2('m-submit-btn').className='btn btn-yata btn-block';
+    el2('m-cancel-btn').style.display='none';
+    save(); renderMenuGrid(); renderMenuList(); updateSelMenuInfo();
+    ['m-name','m-price','m-duration'].forEach(id=>set(id,''));
+    toast('✅ メニューを更新しました');
+  } else {
+    S.menus.push({id:Date.now(),name,price,duration});
+    save(); renderMenuGrid(); renderMenuList();
+    ['m-name','m-price','m-duration'].forEach(id=>set(id,''));
+    toast('✅ メニューを追加しました');
+  }
+}
+function editMenu(id){
+  const m=S.menus.find(x=>x.id===id); if(!m) return;
+  editingMenuId=id;
+  set('m-name',m.name); set('m-price',m.price); set('m-duration',m.duration||'');
+  el2('m-submit-btn').textContent='💾 変更を保存';
+  el2('m-submit-btn').className='btn btn-block btn-warning';
+  el2('m-cancel-btn').style.display='block';
+  el2('m-submit-btn').scrollIntoView({behavior:'smooth',block:'center'});
+}
+function cancelMenuEdit(){
+  editingMenuId=null;
+  ['m-name','m-price','m-duration'].forEach(id=>set(id,''));
+  el2('m-submit-btn').textContent='＋ メニューを追加';
+  el2('m-submit-btn').className='btn btn-yata btn-block';
+  el2('m-cancel-btn').style.display='none';
+}
+function deleteMenu(id){ S.menus=S.menus.filter(m=>m.id!==id); if(S.selMenuId===id) S.selMenuId=null; if(editingMenuId===id) cancelMenuEdit(); save(); renderMenuGrid(); renderMenuList(); updateSelMenuInfo(); }
+function selectMenu(id){
+  S.selMenuId=id; updateSelMenuInfo();
+  const m=S.menus.find(x=>x.id===id); if(m) set('y-amount',m.price);
+  renderMenuGrid();
+}
+function updateSelMenuInfo(){
+  const m=S.menus.find(x=>x.id===S.selMenuId);
+  const wrap=el2('selected-menu-info'), lbl=el2('selected-menu-label');
+  if(m){ wrap.style.display='block'; lbl.textContent=`${m.name}（¥${m.price.toLocaleString()}・${m.duration}分）`; }
+  else wrap.style.display='none';
+}
+function renderMenuGrid(){
+  const el=el2('menu-grid');
+  if(!S.menus.length){ el.innerHTML='<div class="empty" style="grid-column:1/-1;padding:18px">施術メニューを下に登録してください</div>'; return; }
+  el.innerHTML=S.menus.map(m=>`<button class="menu-btn${S.selMenuId===m.id?' selected':''}${S.selMenuId===m.id?' style="border-color:var(--yata);background:#d1fae5"':''}" onclick="selectMenu(${m.id})" style="${S.selMenuId===m.id?'border-color:var(--yata);background:#d1fae5;':''}"><div style="font-size:1.8rem">🌿</div><div class="mn2">${m.name}</div><div class="mp">¥${m.price.toLocaleString()}</div><div class="mt">${m.duration}分</div></button>`).join('');
+}
+function renderMenuList(){
+  const el=el2('menu-list');
+  if(!S.menus.length){ el.innerHTML=''; return; }
+  el.innerHTML='<div style="overflow-x:auto"><table><thead><tr><th>メニュー名</th><th>料金</th><th>時間</th><th></th></tr></thead><tbody>'+
+    S.menus.map(m=>`<tr style="${editingMenuId===m.id?'background:#fffbeb;':''}"><td class="fw">🌿 ${m.name}</td><td style="color:var(--yata);font-weight:700">¥${m.price.toLocaleString()}</td><td class="text-m">${m.duration}分</td><td style="white-space:nowrap"><button class="btn btn-sm btn-warning" style="margin-right:4px" onclick="editMenu(${m.id})">✏️ 編集</button><button class="btn btn-sm btn-danger" onclick="deleteMenu(${m.id})">削除</button></td></tr>`).join('')+
+  '</tbody></table></div>';
+}
+
+// ========== 八咫活法 CUSTOMERS ==========
+function upsertCustomer(){
+  const name=v('y-cname').trim(), contact=v('y-ccontact').trim();
+  if(!name){ toast('⚠️ お名前を入力してください'); return; }
+  let cust=S.customers.find(c=>c.name===name);
+  if(!cust){ cust={id:Date.now(),name,contact}; S.customers.push(cust); save(); }
+  S.selCustId=cust.id;
+  el2('selected-customer-label').textContent=cust.name;
+  renderCustomerMini(); toast(`👤 ${cust.name} さんを選択しました`);
+}
+function selectCustomer(id){
+  S.selCustId=id; const c=S.customers.find(x=>x.id===id);
+  if(c){ el2('selected-customer-label').textContent=c.name; set('y-cname',c.name); }
+  renderCustomerMini();
+}
+function deleteCustomer(id){ if(S.selCustId===id){ S.selCustId=null; el2('selected-customer-label').textContent='（未選択）'; } S.customers=S.customers.filter(c=>c.id!==id); save(); renderCustomerMini(); }
+function renderCustomerMini(){
+  const el=el2('customer-list-mini');
+  if(!S.customers.length){ el.innerHTML='<div style="font-size:.78rem;color:var(--muted);padding:6px 0">過去のお客様はいません</div>'; return; }
+  el.innerHTML=S.customers.map(c=>`<div class="cust-card${S.selCustId===c.id?' selected':''}" onclick="selectCustomer(${c.id})"><div class="flex ai jb"><div><div class="cust-name">${c.name}</div>${c.contact?`<div class="cust-sub">${c.contact}</div>`:''}</div><button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteCustomer(${c.id})">削除</button></div></div>`).join('');
+}
+
+// ========== 八咫活法 TREATMENTS ==========
+function recordTreatment(){
+  const amount=parseInt(v('y-amount')), date=v('y-date'), memo=v('y-memo').trim();
+  if(isNaN(amount)||amount<0){ toast('⚠️ 金額を入力してください'); return; }
+  if(!date){ toast('⚠️ 日付を入力してください'); return; }
+  const menu=S.menus.find(m=>m.id===S.selMenuId);
+  const cust=S.customers.find(c=>c.id===S.selCustId);
+  // 施術記録のみ保存（支払情報は含まない）
+  const rec={
+    id:Date.now(), date,
+    menuId:S.selMenuId, menuName:menu?menu.name:'施術',
+    custId:S.selCustId, custName:cust?cust.name:'（未記録）',
+    amount, memo,
+    payMethod:'unpaid',   // デフォルト未払い（入金管理で変更）
+    transferDate:'',
+    attended:true,        // デフォルト来院（施術後に欠席に変更可）
+    eventId:S.currentEventId||null
+  };
+  S.treatments.unshift(rec); save();
+  renderTreatments(); renderYataPayments(); refreshYataStats(); refreshFinance();
+  const ymContent=`
+    <div style="font-weight:700;font-size:1rem;color:var(--yata);margin-bottom:6px">🌿 ${rec.menuName}</div>
+    <div style="margin-bottom:4px">👤 ${rec.custName}</div>
+    <div style="font-size:1.3rem;font-weight:900;color:var(--yata)">¥${amount.toLocaleString()}</div>
+    <div style="margin-top:10px;font-size:.83rem;background:#fef3c7;border-radius:8px;padding:8px;color:#92400e">
+      💡 入金の記録は「② 入金を記録する」から行ってください
+    </div>
+    ${memo?`<div style="margin-top:8px;font-size:.83rem;color:var(--muted)">${memo}</div>`:''}`;
+  el2('ym-content').innerHTML=ymContent;
+  document.getElementById('yata-modal').classList.add('open');
+  set('y-amount',''); set('y-memo','');
+  toast('🤲 施術を記録しました');
+}
+function updateTreatmentPay(id, method){
+  const t=S.treatments.find(x=>x.id===id); if(!t) return;
+  t.payMethod=method;
+  if(method==='transfer' && !t.transferDate) t.transferDate=new Date().toISOString().slice(0,10);
+  if(method!=='transfer') t.transferDate='';
+  save(); renderTreatments(); renderYataPayments(); refreshYataStats(); refreshFinance();
+  const lbl={transfer:'🏦 振込済み',cash:'💴 現金済み',unpaid:'⏳ 未払い'};
+  toast(`✅ ${t.custName} → ${lbl[method]}`);
+}
+function updateTreatmentTransferDate(id, dateVal){
+  const t=S.treatments.find(x=>x.id===id); if(!t) return;
+  t.transferDate=dateVal; save(); renderYataPayments();
+  toast('💾 振込日を保存しました');
+}
+function delTreatment(id){ S.treatments=S.treatments.filter(t=>t.id!==id); save(); renderTreatments(); renderYataPayments(); refreshYataStats(); refreshFinance(); toast('🗑 削除しました'); }
+function toggleTreatmentAttended(id){
+  const t=S.treatments.find(x=>x.id===id); if(!t) return;
+  t.attended=!(t.attended!==false);
+  save(); renderTreatments(); refreshYataStats();
+  toast(t.attended?`✅ ${t.custName} 来院確認`:`⬜ ${t.custName} 欠席に変更`);
+}
+
+function editTreatment(id){
+  const t=S.treatments.find(x=>x.id===id); if(!t) return;
+  el2('te-id').value=id;
+  set('te-date', t.date);
+  set('te-amount', t.amount);
+  set('te-custname', t.custName);
+  set('te-memo', t.memo||'');
+  set('te-attended', String(t.attended!==false));
+  // メニューセレクトを構築
+  const sel=el2('te-menu');
+  sel.innerHTML='<option value="">── メニューを選択 ──</option>'+
+    S.menus.map(m=>`<option value="${m.id}" ${m.id===t.menuId?'selected':''}>${m.name}（¥${m.price.toLocaleString()}）</option>`).join('')+
+    `<option value="__custom__" ${!S.menus.find(m=>m.id===t.menuId)?'selected':''}>その他</option>`;
+  el2('treat-edit-modal').classList.add('open');
+}
+function saveTreatmentEdit(){
+  const id=parseInt(el2('te-id').value);
+  const t=S.treatments.find(x=>x.id===id); if(!t) return;
+  const date=v('te-date');
+  const amount=parseInt(v('te-amount'));
+  const custName=v('te-custname').trim();
+  const memo=v('te-memo').trim();
+  const menuSel=v('te-menu');
+  if(!date){ toast('⚠️ 日付を入力してください'); return; }
+  if(isNaN(amount)||amount<0){ toast('⚠️ 金額を入力してください'); return; }
+  t.date=date; t.amount=amount; t.custName=custName||t.custName; t.memo=memo;
+  t.attended=(v('te-attended')==='true');
+  if(menuSel && menuSel!=='__custom__'){
+    const m=S.menus.find(x=>x.id===parseInt(menuSel));
+    if(m){ t.menuId=m.id; t.menuName=m.name; }
+  }
+  save(); renderTreatments(); renderYataPayments(); refreshYataStats(); refreshFinance();
+  closeTreatmentEditModal();
+  toast('💾 施術記録を更新しました');
+}
+function closeTreatmentEditModal(){
+  el2('treat-edit-modal').classList.remove('open');
+}
+
+function setYataFilter(mode){
+  yataFilter=mode;
+  const today=new Date().toISOString().slice(0,10);
+  ['today','week','all'].forEach(id=>{
+    const b=el2('yf-'+id); if(!b) return;
+    b.className='btn btn-sm'+(id===mode?' btn-yata':'');
+    if(id!==mode) b.style.cssText='background:#f1f5f9;color:#374151';
+    else b.style.cssText='';
+  });
+  if(mode==='today'){ set('yf-from',today); set('yf-to',today); }
+  else if(mode==='week'){ const d=new Date(); d.setDate(d.getDate()-d.getDay()); set('yf-from',d.toISOString().slice(0,10)); set('yf-to',today); }
+  else if(mode==='all'){ set('yf-from',''); set('yf-to',''); }
+  renderTreatments();
+}
+
+// 施術履歴（支払情報なし）
+function renderTreatments(){
+  const tb=el2('yata-tbody'), emp=el2('yata-empty');
+  const from=v('yf-from'), to=v('yf-to');
+  let list=S.treatments;
+  if(from) list=list.filter(t=>t.date>=from);
+  if(to)   list=list.filter(t=>t.date<=to);
+  if(!list.length){ tb.innerHTML=''; emp.style.display='block'; return; }
+  emp.style.display='none';
+  tb.innerHTML=list.slice(0,60).map(t=>{
+    const att=t.attended!==false;
+    return `<tr style="opacity:${att?'1':'.6'};background:${att?'':'#fff5f5'}">
+    <td>
+      <button onclick="toggleTreatmentAttended(${t.id})"
+        style="padding:4px 9px;border-radius:20px;border:1.5px solid ${att?'#16a34a':'#d1d5db'};background:${att?'#d1fae5':'#f9fafb'};color:${att?'#065f46':'#6b7280'};font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap">
+        ${att?'✅ 来院':'⬜ 欠席'}
+      </button>
+    </td>
+    <td class="text-m">${t.date}</td>
+    <td style="font-weight:600">${t.custName}</td>
+    <td><span class="badge b-yata">🌿 ${t.menuName}</span></td>
+    <td class="fw" style="color:${att?'var(--yata)':'#9ca3af'}">¥${t.amount.toLocaleString()}</td>
+    <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:.78rem">${t.memo||'－'}</td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-sm btn-outline" onclick="editTreatment(${t.id})" style="border-color:var(--yata);color:var(--yata);padding:4px 8px;margin-right:4px">✏️</button>
+      <button class="btn btn-sm btn-danger" onclick="delTreatment(${t.id})">削除</button>
+    </td>
+  </tr>`;}).join('');
+}
+
+// ② 入金管理リスト
+function renderYataPayments(){
+  const el=el2('yata-payment-list');
+  const badge=el2('yata-unpaid-badge');
+  if(!S.treatments.length){
+    el.innerHTML='<div class="empty"><div class="ei">💰</div>施術を記録すると入金管理ができます</div>';
+    if(badge) badge.style.display='none';
+    return;
+  }
+  // 未払い件数バッジ
+  const unpaidList=S.treatments.filter(t=>t.payMethod==='unpaid');
+  if(badge){
+    if(unpaidList.length){
+      badge.style.display='block';
+      badge.textContent=`⏳ 未払い ${unpaidList.length} 件 ／ ¥${unpaidList.reduce((s,t)=>s+t.amount,0).toLocaleString()}`;
+    } else {
+      badge.style.display='none';
+    }
+  }
+  // 未払い→振込→現金 の順で表示
+  const sorted=[...S.treatments].sort((a,b)=>{
+    const order={unpaid:0,transfer:1,cash:2};
+    return (order[a.payMethod]??0)-(order[b.payMethod]??0) || b.date.localeCompare(a.date);
+  });
+  el.innerHTML=sorted.slice(0,80).map(t=>{
+    const isPaid=t.payMethod!=='unpaid';
+    const isTransfer=t.payMethod==='transfer';
+    return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;margin-bottom:7px;border:1.5px solid ${isPaid?'#a7f3d0':'#fca5a5'};background:${isPaid?'#f0fdfa':'#fff5f5'}">
+      <!-- 施術情報 -->
+      <div style="flex:1;min-width:120px">
+        <div style="font-weight:700;font-size:.88rem">${t.custName}</div>
+        <div style="font-size:.75rem;color:var(--muted)">🌿 ${t.menuName} ／ 📅 ${t.date}</div>
+      </div>
+      <!-- 金額 -->
+      <div style="font-weight:900;font-size:1rem;color:${isPaid?'var(--yata)':'#991b1b'};min-width:70px;text-align:right">¥${t.amount.toLocaleString()}</div>
+      <!-- 支払ボタン -->
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="pay-badge pay-unpaid t-pay-btn"   data-tid="${t.id}" data-method="unpaid"   style="opacity:${t.payMethod==='unpaid'?'1':'.35'};font-size:.75rem;padding:5px 9px">⏳ 未払</button>
+        <button class="pay-badge pay-transfer t-pay-btn" data-tid="${t.id}" data-method="transfer" style="opacity:${isTransfer?'1':'.35'};font-size:.75rem;padding:5px 9px">🏦 振込</button>
+        <button class="pay-badge pay-cash t-pay-btn"     data-tid="${t.id}" data-method="cash"     style="opacity:${t.payMethod==='cash'?'1':'.35'};font-size:.75rem;padding:5px 9px">💴 現金</button>
+      </div>
+      <!-- 振込日（振込の場合のみ） -->
+      ${isTransfer?`<div style="display:flex;align-items:center;gap:5px;width:100%;padding-top:6px;border-top:1px dashed #a7f3d0;margin-top:2px">
+        <span style="font-size:.75rem;color:#1d4ed8;font-weight:700;white-space:nowrap">🏦 振込日:</span>
+        <input type="date" value="${t.transferDate||''}" class="t-date-input" data-tid="${t.id}"
+          style="font-size:.8rem;padding:4px 7px;border:1.5px solid #93c5fd;border-radius:7px;background:#fff;color:#1d4ed8;flex:1;max-width:160px">
+        ${t.transferDate?`<span style="font-size:.72rem;color:#1d4ed8;font-weight:600">✅ 記録済み</span>`:`<span style="font-size:.72rem;color:#f97316">未記入</span>`}
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function refreshYataStats(){
+  const today=new Date().toISOString().slice(0,10);
+  const td=S.treatments.filter(t=>t.date===today);
+  const paid=S.treatments.filter(t=>t.payMethod!=='unpaid').reduce((s,t)=>s+t.amount,0);
+  const unpaid=S.treatments.filter(t=>t.payMethod==='unpaid').reduce((s,t)=>s+t.amount,0);
+  const transfer=S.treatments.filter(t=>t.payMethod==='transfer');
+  const cash=S.treatments.filter(t=>t.payMethod==='cash');
+  el2('y-today').textContent='¥'+td.reduce((s,t)=>s+t.amount,0).toLocaleString();
+  el2('y-count').textContent=S.treatments.length+'件';
+  el2('y-total').textContent='¥'+paid.toLocaleString();
+  el2('y-unpaid').textContent='¥'+unpaid.toLocaleString();
+  el2('y-transfer-amt').textContent='¥'+transfer.reduce((s,t)=>s+t.amount,0).toLocaleString();
+  el2('y-transfer-cnt').textContent=transfer.length;
+  el2('y-cash-amt').textContent='¥'+cash.reduce((s,t)=>s+t.amount,0).toLocaleString();
+  el2('y-cash-cnt').textContent=cash.length;
+  el2('y-unpaid-amt2').textContent='¥'+unpaid.toLocaleString();
+  el2('y-unpaid-cnt').textContent=S.treatments.filter(t=>t.payMethod==='unpaid').length;
+  // 来院・欠席バッジ
+  const attCnt=S.treatments.filter(t=>t.attended!==false).length;
+  const absCnt=S.treatments.filter(t=>t.attended===false).length;
+  const badge=el2('y-attend-badge');
+  if(badge){
+    if(S.treatments.length){
+      badge.style.display='block';
+      badge.innerHTML=`✅ 来院 <strong>${attCnt}</strong> 件 ／ ⬜ 欠席 <strong style="color:#dc2626">${absCnt}</strong> 件 ／ 合計 ${S.treatments.length} 件`;
+    } else { badge.style.display='none'; }
+  }
+}
+
+// ========== FINANCE ==========
+function renderCats(){
+  const sel=el2('fin-cat'), cats=S.cats['expense']||[];
+  sel.innerHTML='<option value="">カテゴリを選択</option>'+cats.map(c=>`<option value="${c}">${c}</option>`).join('');
+}
+function onFinCatChange(){
+  const cat=v('fin-cat');
+  el2('fin-staff-wrap').style.display=(cat==='スタッフ支払い')?'block':'none';
+  if(cat!=='スタッフ支払い') set('fin-staff','');
+}
+function addTx(){
+  const amount=parseInt(v('fin-amount')), date=v('fin-date'), cat=v('fin-cat'), memo=v('fin-memo').trim();
+  const staffName=(cat==='スタッフ支払い')? v('fin-staff').trim() : '';
+  if(!amount||amount<=0){ toast('⚠️ 金額を入力してください'); return; }
+  if(!date){ toast('⚠️ 日付を入力してください'); return; }
+  if(cat==='スタッフ支払い'&&!staffName){ toast('⚠️ スタッフ名を入力してください'); return; }
+  S.txs.unshift({id:Date.now(),type:'expense',amount,date,category:cat||'その他',memo,staffName});
+  save(); renderTxList(); refreshFinance(); toast('✅ 経費を追加しました');
+  set('fin-amount',''); set('fin-memo',''); set('fin-staff','');
+  el2('fin-staff-wrap').style.display='none';
+  el2('fin-cat').value='';
+}
+function delTx(id){ S.txs=S.txs.filter(t=>t.id!==id); save(); renderTxList(); refreshFinance(); toast('🗑 削除しました'); }
+function renderTxList(){
+  const tb=el2('fin-tbody'), emp=el2('fin-empty');
+  const sorted=[...S.txs].sort((a,b)=>b.date.localeCompare(a.date));
+  if(!sorted.length){ tb.innerHTML=''; emp.style.display='block'; return; }
+  emp.style.display='none';
+  tb.innerHTML=sorted.slice(0,100).map(t=>{
+    const memoCell = t.category==='スタッフ支払い'&&t.staffName
+      ? `<span style="font-weight:700;color:#7c3aed">👤 ${t.staffName}</span>${t.memo?` <span style="color:var(--muted);font-size:.8rem">${t.memo}</span>`:''}`
+      : (t.memo||'－');
+    return `<tr><td class="text-m">${t.date}</td><td><span class="badge b-other">${t.category}</span></td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${memoCell}</td><td class="fw" style="color:var(--expense)">-¥${t.amount.toLocaleString()}</td><td><button class="btn btn-sm btn-danger" onclick="delTx(${t.id})">削除</button></td></tr>`;
+  }).join('');
+}
+
+// ========== イベント管理 ==========
+function currentEvent(){ return S.events.find(e=>e.id===S.currentEventId)||null; }
+
+function addNewEvent(){
+  const name=v('evt-new-name').trim(), date=v('evt-new-date');
+  if(!name){ toast('⚠️ イベント名を入力してください'); return; }
+  const ev={id:Date.now(), name, date};
+  if(!S.events) S.events=[];
+  S.events.unshift(ev);
+  S.currentEventId=ev.id;
+  save();
+  set('evt-new-name',''); set('evt-new-date','');
+  renderEventList(); updateEvtBanners();
+  // details を閉じる
+  const d=el2('evt-new-wrap'); if(d) d.removeAttribute('open');
+  toast('✅ イベントを作成しました: '+name);
+}
+function selectEvent(id){
+  S.currentEventId=id; save();
+  renderEventList(); updateEvtBanners();
+}
+function deleteEvent(id){
+  if(!confirm('このイベントを削除しますか？\n紐づいた参加者・施術記録のイベント情報はクリアされます。')) return;
+  S.events=S.events.filter(e=>e.id!==id);
+  if(S.currentEventId===id) S.currentEventId=S.events.length?S.events[0].id:null;
+  S.participants.forEach(p=>{ if(p.eventId===id) p.eventId=null; });
+  S.treatments.forEach(t=>{ if(t.eventId===id) t.eventId=null; });
+  save(); renderEventList(); updateEvtBanners(); refreshFinance();
+}
+function renderEventList(){
+  const el=el2('evt-list'); if(!el) return;
+  if(!S.events||!S.events.length){
+    el.innerHTML='<div style="font-size:.82rem;color:var(--muted);padding:6px 0">まだイベントがありません。下のフォームから作成してください。</div>';
+    return;
+  }
+  el.innerHTML=S.events.map(e=>{
+    const sel=e.id===S.currentEventId;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;margin-bottom:5px;border:1.5px solid ${sel?'var(--lecture)':'var(--border)'};background:${sel?'#dbeafe':'#fff'};cursor:pointer" onclick="selectEvent(${e.id})">
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:.88rem;color:${sel?'#1e3a8a':'#1f2937'}">${sel?'✅ ':''} ${e.name}</div>
+        <div style="font-size:.74rem;color:var(--muted)">${e.date?'📅 '+e.date.replace(/-/g,'/'):''}</div>
+      </div>
+      <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteEvent(${e.id})">削除</button>
+    </div>`;
+  }).join('');
+}
+function updateEvtBanners(){
+  const ev=currentEvent();
+  // 講演会タブ
+  const banner=el2('evt-current-banner');
+  if(banner){
+    if(ev){ banner.style.display='block'; el2('evt-current-name').textContent=ev.name; el2('evt-current-date').textContent=ev.date?'📅 '+ev.date.replace(/-/g,'/'):'';}
+    else banner.style.display='none';
+  }
+  // 八咫活法タブ
+  const yn=el2('yata-evt-name'), yd=el2('yata-evt-date');
+  if(yn){ yn.textContent=ev?ev.name:'（イベント未選択）'; yn.style.color=ev?'#065f46':'#9ca3af'; }
+  if(yd){ yd.textContent=ev&&ev.date?'📅 '+ev.date.replace(/-/g,'/'):''; }
+  // 収支タブのイベントバナーは refreshFinance 内で更新
+}
+
+// ========== 講演会 参加者管理 ==========
+const PAY_LABEL = {transfer:'🏦 振込済み', cash:'💴 現金済み', unpaid:'⏳ 未払い'};
+const PAY_CLASS = {transfer:'pay-transfer', cash:'pay-cash', unpaid:'pay-unpaid'};
+
+// 参加者追加フォーム：支払方法変更時に振込日欄の表示切り替え
+function onPaxPayChange(){
+  const method=v('pax-paymethod');
+  const wrap=el2('pax-date-wrap');
+  const label=el2('pax-date-label');
+  if(!wrap) return;
+  if(method==='transfer'){
+    wrap.style.display='';
+    if(label) label.textContent='🏦 振込日';
+  } else if(method==='cash'){
+    wrap.style.display='';
+    if(label) label.textContent='💴 支払日';
+  } else {
+    wrap.style.display='none';
+  }
+}
+
+function addParticipant(){
+  const name=v('pax-name').trim(), amount=parseInt(v('pax-amount')), payMethod=v('pax-paymethod'), date=v('pax-date'), memo=v('pax-memo').trim();
+  if(!name){ toast('⚠️ 氏名を入力してください'); return; }
+  if(isNaN(amount)||amount<0){ toast('⚠️ 金額を入力してください'); return; }
+  const transferDate=(payMethod==='transfer')?date:'';
+  S.participants.unshift({id:Date.now(),name,amount,payMethod,date,transferDate,memo,attended:false,eventId:S.currentEventId||null});
+  save(); renderParticipants(); refreshFinance();
+  set('pax-name',''); set('pax-amount',''); set('pax-memo','');
+  toast(`✅ ${name} さんを追加しました`);
+}
+function updateParticipantPay(id, method){
+  const p=S.participants.find(x=>x.id===id); if(!p) return;
+  p.payMethod=method;
+  if(method==='transfer' && !p.transferDate) p.transferDate=new Date().toISOString().slice(0,10);
+  if(method!=='transfer') p.transferDate='';
+  save(); renderParticipants(); refreshFinance();
+  toast(`✅ ${p.name} → ${PAY_LABEL[method]}`);
+}
+function updateParticipantTransferDate(id, dateVal){
+  const p=S.participants.find(x=>x.id===id); if(!p) return;
+  p.transferDate=dateVal; save(); renderParticipants();
+  toast('💾 振込日を保存しました');
+}
+function toggleAttended(id){
+  const p=S.participants.find(x=>x.id===id); if(!p) return;
+  p.attended=!p.attended; save(); renderParticipants();
+  toast(p.attended?`✅ ${p.name} 出席確認`:`❌ ${p.name} 欠席に変更`);
+}
+function deleteParticipant(id){ S.participants=S.participants.filter(x=>x.id!==id); save(); renderParticipants(); refreshFinance(); toast('🗑 削除しました'); }
+
+// 参加者編集モーダル
+function editParticipant(id){
+  const p=S.participants.find(x=>x.id===id); if(!p) return;
+  el2('pe-id').value=id;
+  set('pe-name', p.name);
+  set('pe-amount', p.amount);
+  set('pe-paymethod', p.payMethod);
+  set('pe-transfer-date', p.transferDate||'');
+  set('pe-memo', p.memo||'');
+  set('pe-attended', String(p.attended));
+  onPePayChange();
+  el2('pax-edit-modal').classList.add('open');
+}
+function onPePayChange(){
+  const method=v('pe-paymethod');
+  const wrap=el2('pe-transfer-date-wrap');
+  if(wrap) wrap.style.display=(method==='transfer')?'':'none';
+}
+function saveParticipantEdit(){
+  const id=parseInt(el2('pe-id').value);
+  const p=S.participants.find(x=>x.id===id); if(!p) return;
+  const name=v('pe-name').trim();
+  const amount=parseInt(v('pe-amount'));
+  const payMethod=v('pe-paymethod');
+  const transferDate=(payMethod==='transfer')?v('pe-transfer-date'):'';
+  const memo=v('pe-memo').trim();
+  const attended=(v('pe-attended')==='true');
+  if(!name){ toast('⚠️ 氏名を入力してください'); return; }
+  if(isNaN(amount)||amount<0){ toast('⚠️ 金額を入力してください'); return; }
+  p.name=name; p.amount=amount; p.payMethod=payMethod;
+  p.transferDate=transferDate; p.memo=memo; p.attended=attended;
+  save(); renderParticipants(); refreshFinance();
+  closeParticipantEditModal();
+  toast('💾 変更を保存しました');
+}
+function closeParticipantEditModal(){
+  el2('pax-edit-modal').classList.remove('open');
+}
+function renderParticipants(){
+  const el=el2('pax-list');
+  if(!S.participants.length){ el.innerHTML='<div class="empty" style="padding:20px"><div class="ei">👥</div>参加者を追加してください</div>'; return; }
+  // サマリー更新
+  const groups={transfer:{amt:0,cnt:0},cash:{amt:0,cnt:0},unpaid:{amt:0,cnt:0}};
+  S.participants.forEach(p=>{ groups[p.payMethod].amt+=p.amount; groups[p.payMethod].cnt++; });
+  ['transfer','cash','unpaid'].forEach(k=>{
+    const ea=el2(`pax-${k}-amt`), ec=el2(`pax-${k}-cnt`);
+    if(ea) ea.textContent='¥'+groups[k].amt.toLocaleString();
+    if(ec) ec.textContent=groups[k].cnt;
+  });
+  // 出席サマリー
+  const attCnt=S.participants.filter(p=>p.attended).length;
+  const totalCnt=S.participants.length;
+  const atBadge=el2('pax-attend-summary');
+  if(atBadge) atBadge.textContent=`出席 ${attCnt} / ${totalCnt} 名`;
+  // リスト
+  el.innerHTML=S.participants.map(p=>`
+    <div class="pax-row" style="flex-wrap:wrap;gap:6px;padding:10px 0">
+      <!-- 出席チェック -->
+      <button onclick="toggleAttended(${p.id})"
+        style="padding:5px 10px;border-radius:20px;border:1.5px solid ${p.attended?'#16a34a':'#d1d5db'};background:${p.attended?'#d1fae5':'#f9fafb'};color:${p.attended?'#065f46':'#6b7280'};font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
+        ${p.attended?'✅ 出席':'⬜ 未確認'}
+      </button>
+      <!-- 名前・メモ -->
+      <div style="flex:1;min-width:80px">
+        <div class="pax-name">${p.name}</div>
+        ${p.memo?`<div class="text-m">${p.memo}</div>`:''}
+      </div>
+      <!-- 支払ボタン -->
+      <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+        <button class="pay-badge pay-transfer" onclick="updateParticipantPay(${p.id},'transfer')" style="opacity:${p.payMethod==='transfer'?'1':'.4'};font-size:.75rem;padding:4px 8px">🏦 振込</button>
+        <button class="pay-badge pay-cash"     onclick="updateParticipantPay(${p.id},'cash')"     style="opacity:${p.payMethod==='cash'?'1':'.4'};font-size:.75rem;padding:4px 8px">💴 現金</button>
+        <button class="pay-badge pay-unpaid"   onclick="updateParticipantPay(${p.id},'unpaid')"   style="opacity:${p.payMethod==='unpaid'?'1':'.4'};font-size:.75rem;padding:4px 8px">⏳ 未払</button>
+      </div>
+      <!-- 振込日（振込の場合のみ） -->
+      ${p.payMethod==='transfer'?`
+      <div style="display:flex;align-items:center;gap:4px">
+        <span style="font-size:.72rem;color:#1d4ed8;white-space:nowrap">振込日:</span>
+        <input type="date" value="${p.transferDate||''}" onchange="updateParticipantTransferDate(${p.id},this.value)"
+          style="font-size:.72rem;padding:3px 5px;border:1px solid #93c5fd;border-radius:6px;background:#eff6ff;color:#1d4ed8;width:125px">
+      </div>`:''}
+      <!-- 金額 -->
+      <div class="pax-amt" style="color:${p.payMethod==='unpaid'?'#991b1b':'var(--success)'};min-width:70px;text-align:right;font-weight:800">¥${p.amount.toLocaleString()}</div>
+      <button class="btn btn-sm btn-outline" onclick="editParticipant(${p.id})" style="border-color:var(--lecture);color:var(--lecture);padding:5px 9px">✏️</button>
+      <button class="btn btn-sm btn-danger" onclick="deleteParticipant(${p.id})">削除</button>
+    </div>`).join('');
+}
+function exportPaxCSV(){
+  if(!S.participants.length){ toast('⚠️ データがありません'); return; }
+  let csv='氏名,金額,支払方法,振込日,出席,メモ\n';
+  S.participants.forEach(p=>{ csv+=`${p.name},${p.amount},${PAY_LABEL[p.payMethod]||p.payMethod},${p.transferDate||''},${p.attended?'出席':'未確認'},"${p.memo||''}"\n`; });
+  dlCSV(csv,'講演会参加者リスト.csv');
+}
+
+function refreshFinance(){
+  // 講演会：入金済みのみ（振込＋現金）
+  const paxPaid=S.participants.filter(p=>p.payMethod!=='unpaid').reduce((s,p)=>s+p.amount,0);
+  const paxUnpaid=S.participants.filter(p=>p.payMethod==='unpaid').reduce((s,p)=>s+p.amount,0);
+  const paxTransfer=S.participants.filter(p=>p.payMethod==='transfer').reduce((s,p)=>s+p.amount,0);
+  const paxCash=S.participants.filter(p=>p.payMethod==='cash').reduce((s,p)=>s+p.amount,0);
+  // 八咫活法：入金済みのみ
+  const yataPaid=S.treatments.filter(t=>t.payMethod!=='unpaid').reduce((s,t)=>s+t.amount,0);
+  const yataUnpaid=S.treatments.filter(t=>t.payMethod==='unpaid').reduce((s,t)=>s+t.amount,0);
+  const expense=S.txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const bookTot=S.sales.reduce((s,t)=>s+t.total,0);
+  const incomeTotal=paxPaid+yataPaid;
+  const profit=incomeTotal-expense;
+  // 講演会
+  el2('f-lecture').textContent='¥'+paxPaid.toLocaleString();
+  el2('f-lecture-detail').textContent=`振込¥${paxTransfer.toLocaleString()} 現金¥${paxCash.toLocaleString()}`;
+  el2('f-lecture-unpaid').textContent=paxUnpaid>0?`⏳ 未払い ¥${paxUnpaid.toLocaleString()}（${S.participants.filter(p=>p.payMethod==='unpaid').length}名）`:'';
+  // 八咫活法
+  el2('f-yata').textContent='¥'+yataPaid.toLocaleString();
+  const yataTr=S.treatments.filter(t=>t.payMethod==='transfer').reduce((s,t)=>s+t.amount,0);
+  const yataCa=S.treatments.filter(t=>t.payMethod==='cash').reduce((s,t)=>s+t.amount,0);
+  el2('f-yata-detail').textContent=`振込¥${yataTr.toLocaleString()} 現金¥${yataCa.toLocaleString()}`;
+  el2('f-yata-unpaid').textContent=yataUnpaid>0?`⏳ 未払い ¥${yataUnpaid.toLocaleString()}（${S.treatments.filter(t=>t.payMethod==='unpaid').length}件）`:'';
+  el2('f-income-total').textContent='¥'+incomeTotal.toLocaleString();
+  el2('f-expense').textContent='¥'+expense.toLocaleString();
+  el2('f-profit').textContent=(profit>=0?'+':'')+'¥'+profit.toLocaleString();
+  const pb=el2('profit-box');
+  if(profit>=0){ pb.style.background='linear-gradient(135deg,#f0fdf4,#dcfce7)'; pb.style.border='2px solid #86efac'; el2('f-profit').style.color='#16a34a'; }
+  else { pb.style.background='linear-gradient(135deg,#fef2f2,#fee2e2)'; pb.style.border='2px solid #fca5a5'; el2('f-profit').style.color='var(--danger)'; }
+  // 書籍販売（別枠）
+  el2('f-book').textContent='¥'+bookTot.toLocaleString();
+  const totals={};
+  S.members.forEach(m=>totals[m.name]=0);
+  S.sales.forEach(s=>(s.split||[]).forEach(sp=>{ if(totals[sp.name]!==undefined) totals[sp.name]+=sp.amount; }));
+  el2('f-book-split').innerHTML=S.members.length?S.members.map(m=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-top:1px dashed #fed7aa"><span style="font-size:.83rem;font-weight:600">${m.name}<span style="font-size:.72rem;color:var(--muted);margin-left:4px">（${m.ratio}%）</span></span><span style="font-weight:800;color:var(--book)">¥${(totals[m.name]||0).toLocaleString()}</span></div>`).join(''):'<div style="font-size:.78rem;color:var(--muted)">チームメンバーを登録してください</div>';
+  // 参加者サマリー欄更新
+  renderParticipantSummaryOnly();
+  // イベント別内訳をレンダリング
+  renderPerEventFinance();
+}
+function renderPerEventFinance(){
+  const el=el2('fin-per-event'); if(!el) return;
+  if(!S.events||!S.events.length){ el.innerHTML=''; return; }
+  const expense=S.txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  // 経費はイベント共通として全体から按分表示
+  const evCards = S.events.map(ev=>{
+    const paxPaid   = S.participants.filter(p=>p.eventId===ev.id&&p.payMethod!=='unpaid').reduce((s,p)=>s+p.amount,0);
+    const paxUnpaid = S.participants.filter(p=>p.eventId===ev.id&&p.payMethod==='unpaid').reduce((s,p)=>s+p.amount,0);
+    const paxCnt    = S.participants.filter(p=>p.eventId===ev.id).length;
+    const yataPaid  = S.treatments.filter(t=>t.eventId===ev.id&&t.payMethod!=='unpaid').reduce((s,t)=>s+t.amount,0);
+    const yataUnpaid= S.treatments.filter(t=>t.eventId===ev.id&&t.payMethod==='unpaid').reduce((s,t)=>s+t.amount,0);
+    const yataCnt   = S.treatments.filter(t=>t.eventId===ev.id).length;
+    const total = paxPaid+yataPaid;
+    const isCurrent = ev.id===S.currentEventId;
+    return `<div style="border:2px solid ${isCurrent?'#60a5fa':'#c4b5fd'};border-radius:11px;padding:11px 13px;margin-bottom:8px;background:${isCurrent?'linear-gradient(135deg,#eff6ff,#dbeafe)':'#faf5ff'}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+        <div>
+          <div style="font-size:.95rem;font-weight:800;color:${isCurrent?'#1e3a8a':'#4c1d95'}">${isCurrent?'📍 ':''} ${ev.name}</div>
+          <div style="font-size:.73rem;color:var(--muted)">${ev.date?'📅 '+ev.date.replace(/-/g,'/'):''}</div>
+        </div>
+        <div style="font-size:1.05rem;font-weight:800;color:${isCurrent?'var(--lecture)':'var(--primary)'}">¥${total.toLocaleString()}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div style="background:#eff6ff;border-radius:7px;padding:6px 9px;border:1px solid #bfdbfe">
+          <div style="font-size:.68rem;color:var(--lecture);font-weight:700">📡 講演会（入金）</div>
+          <div style="font-size:.92rem;font-weight:800;color:var(--lecture)">¥${paxPaid.toLocaleString()}</div>
+          <div style="font-size:.68rem;color:var(--muted)">${paxCnt}名${paxUnpaid>0?' ／ 未払い¥'+paxUnpaid.toLocaleString():''}</div>
+        </div>
+        <div style="background:#f0fdfa;border-radius:7px;padding:6px 9px;border:1px solid #a7f3d0">
+          <div style="font-size:.68rem;color:var(--yata);font-weight:700">🤲 八咫活法（入金）</div>
+          <div style="font-size:.92rem;font-weight:800;color:var(--yata)">¥${yataPaid.toLocaleString()}</div>
+          <div style="font-size:.68rem;color:var(--muted)">${yataCnt}件${yataUnpaid>0?' ／ 未払い¥'+yataUnpaid.toLocaleString():''}</div>
+        </div>
+      </div>
+    </div>`;
+  });
+  // 未分類（eventId=null）
+  const noEvPax   = S.participants.filter(p=>!p.eventId);
+  const noEvTreat = S.treatments.filter(t=>!t.eventId);
+  let noEvCard='';
+  if(noEvPax.length||noEvTreat.length){
+    const nPaid = noEvPax.filter(p=>p.payMethod!=='unpaid').reduce((s,p)=>s+p.amount,0);
+    const nYata = noEvTreat.filter(t=>t.payMethod!=='unpaid').reduce((s,t)=>s+t.amount,0);
+    noEvCard=`<div style="border:1.5px dashed #d1d5db;border-radius:11px;padding:10px 13px;margin-bottom:8px;background:#f9fafb">
+      <div style="font-size:.8rem;font-weight:700;color:#6b7280;margin-bottom:5px">📁 未分類（イベント未設定）</div>
+      <div style="font-size:.82rem;color:#374151">講演会 ¥${nPaid.toLocaleString()}（${noEvPax.length}名） ／ 八咫活法 ¥${nYata.toLocaleString()}（${noEvTreat.length}件）</div>
+    </div>`;
+  }
+  el.innerHTML=`<div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:6px">📊 イベント別収支</div>`+evCards.join('')+noEvCard;
+}
+function renderParticipantSummaryOnly(){
+  if(!S.participants.length) return;
+  const groups={transfer:{amt:0,cnt:0},cash:{amt:0,cnt:0},unpaid:{amt:0,cnt:0}};
+  S.participants.forEach(p=>{ groups[p.payMethod].amt+=p.amount; groups[p.payMethod].cnt++; });
+  ['transfer','cash','unpaid'].forEach(k=>{
+    const ea=el2(`pax-${k}-amt`), ec=el2(`pax-${k}-cnt`);
+    if(ea) ea.textContent='¥'+groups[k].amt.toLocaleString();
+    if(ec) ec.textContent=groups[k].cnt;
+  });
+}
+
+// ========== イベント収支アーカイブ ==========
+function doArchive(){
+  const paxPaid   = S.participants.filter(p=>p.payMethod!=='unpaid').reduce((s,p)=>s+p.amount,0);
+  const paxUnpaid = S.participants.filter(p=>p.payMethod==='unpaid').reduce((s,p)=>s+p.amount,0);
+  const yataPaid  = S.treatments.filter(t=>t.payMethod!=='unpaid').reduce((s,t)=>s+t.amount,0);
+  const yataUnpaid= S.treatments.filter(t=>t.payMethod==='unpaid').reduce((s,t)=>s+t.amount,0);
+  const expense   = S.txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const profit    = (paxPaid+yataPaid) - expense;
+  const now=new Date();
+  if(!S.finArchives) S.finArchives=[];
+  S.finArchives.unshift({
+    id: Date.now(),
+    recordDate: now.toISOString().slice(0,10),
+    recordTime: now.toTimeString().slice(0,5),
+    eventName: (currentEvent()||{}).name||'',
+    eventDate: (currentEvent()||{}).date||'',
+    paxPaid, paxUnpaid, paxCnt: S.participants.length,
+    yataPaid, yataUnpaid, yataCnt: S.treatments.length,
+    expense, profit,
+    note: v('arch-note').trim()
+  });
+  save(); renderArchives();
+  set('arch-note','');
+  toast('✅ 収支を記録しました');
+}
+function deleteArchive(id){ S.finArchives=S.finArchives.filter(a=>a.id!==id); save(); renderArchives(); toast('🗑 削除しました'); }
+function renderArchives(){
+  const el=el2('fin-archive-list'); if(!el) return;
+  if(!S.finArchives||!S.finArchives.length){ el.innerHTML='<div class="empty"><div class="ei">📊</div>まだ記録がありません</div>'; return; }
+  el.innerHTML=S.finArchives.map(a=>{
+    const profColor=a.profit>=0?'#16a34a':'var(--danger)';
+    const profSign=a.profit>=0?'+':'';
+    return `<div style="border:1.5px solid #c4b5fd;border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#faf5ff">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:7px">
+        <div>
+          <div style="font-size:1rem;font-weight:800;color:#4c1d95">${a.eventName||'（イベント名なし）'}</div>
+          <div style="font-size:.75rem;color:var(--muted)">
+            ${a.eventDate?'📅 開催: '+a.eventDate.replace(/-/g,'/')+' &nbsp;':''}
+            🕐 記録: ${a.recordDate.replace(/-/g,'/')} ${a.recordTime}
+          </div>
+          ${a.note?`<div style="font-size:.8rem;color:#6d28d9;margin-top:2px">📝 ${a.note}</div>`:''}
+        </div>
+        <button class="btn btn-sm btn-danger" onclick="deleteArchive(${a.id})" style="flex-shrink:0;margin-left:8px">削除</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+        <div style="background:#eff6ff;border-radius:7px;padding:7px 10px;border:1px solid #bfdbfe">
+          <div style="font-size:.7rem;color:var(--lecture);font-weight:700">📡 講演会（入金済み）</div>
+          <div style="font-size:1rem;font-weight:800;color:var(--lecture)">¥${a.paxPaid.toLocaleString()}</div>
+          <div style="font-size:.7rem;color:var(--muted)">${a.paxCnt}名 ／ 未払い¥${a.paxUnpaid.toLocaleString()}</div>
+        </div>
+        <div style="background:#f0fdfa;border-radius:7px;padding:7px 10px;border:1px solid #a7f3d0">
+          <div style="font-size:.7rem;color:var(--yata);font-weight:700">🤲 八咫活法（入金済み）</div>
+          <div style="font-size:1rem;font-weight:800;color:var(--yata)">¥${a.yataPaid.toLocaleString()}</div>
+          <div style="font-size:.7rem;color:var(--muted)">${a.yataCnt}件 ／ 未払い¥${a.yataUnpaid.toLocaleString()}</div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:#fff7ed;border-radius:7px;border:1px solid #fed7aa">
+        <span style="font-size:.8rem;color:var(--muted)">📤 経費 <strong style="color:var(--expense)">¥${a.expense.toLocaleString()}</strong></span>
+        <span style="font-size:.95rem;font-weight:800;color:${profColor}">💎 純利益 ${profSign}¥${a.profit.toLocaleString()}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ========== TEAM ==========
+function ratioTotal(){ return S.members.reduce((s,m)=>s+m.ratio,0); }
+function addMember(){
+  const name=v('m-mname').trim(), ratio=parseInt(v('m-mratio'));
+  if(!name){ toast('⚠️ 名前を入力してください'); return; }
+  if(isNaN(ratio)||ratio<=0||ratio>100){ toast('⚠️ 割合は1〜100で入力してください'); return; }
+  if(ratioTotal()+ratio>100){ toast(`⚠️ 合計が${ratioTotal()+ratio}%になります`); return; }
+  S.members.push({id:Date.now(),name,ratio});
+  save(); renderMembers(); renderRatioBar();
+  set('m-mname',''); set('m-mratio','');
+  toast(`✅ ${name}（${ratio}%）を追加しました`);
+}
+function delMember(id){ S.members=S.members.filter(m=>m.id!==id); save(); renderMembers(); renderRatioBar(); }
+function renderMembers(){
+  const el=el2('member-list');
+  if(!S.members.length){ el.innerHTML='<div class="empty"><div class="ei">👥</div>メンバーを追加してください</div>'; return; }
+  el.innerHTML=S.members.map(m=>`<div class="member-card"><div class="m-avatar">${m.name.charAt(0)}</div><div class="m-info"><div class="m-name">${m.name}</div><div class="ratio-bar" style="width:120px;display:inline-block;margin-top:3px"><div class="ratio-fill" style="width:${m.ratio}%"></div></div></div><span class="pct-badge">${m.ratio}%</span><button class="btn btn-sm btn-danger" onclick="delMember(${m.id})">削除</button></div>`).join('');
+}
+function renderRatioBar(){
+  const tot=ratioTotal();
+  el2('ratio-badge').textContent=tot+'%';
+  el2('ratio-fill').style.width=Math.min(tot,100)+'%';
+  el2('ratio-fill').style.background=tot===100?'var(--success)':tot>100?'var(--danger)':'var(--book)';
+  el2('ratio-warn').style.display=(tot!==100&&tot>0)?'block':'none';
+}
+function renderBookDist(){
+  const el=el2('book-dist');
+  if(!S.sales.length||!S.members.length){ el.innerHTML='<div class="empty"><div class="ei">📊</div>売上データまたはメンバーがありません</div>'; return; }
+  const totals={}, grand=S.sales.reduce((s,sale)=>{ (sale.split||[]).forEach(sp=>{ totals[sp.name]=(totals[sp.name]||0)+sp.amount; }); return s+sale.total; },0);
+  el.innerHTML=`<div style="margin-bottom:10px;font-size:.83rem">書籍販売 総額: <strong style="color:var(--book)">¥${grand.toLocaleString()}</strong>（${S.sales.length}件）</div>`+
+    S.members.map(m=>`<div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--border)"><div class="m-avatar">${m.name.charAt(0)}</div><div style="flex:1"><div class="fw">${m.name}</div><div class="ratio-bar" style="margin-top:3px"><div class="ratio-fill" style="width:${m.ratio}%"></div></div></div><div style="text-align:right"><div class="fw" style="font-size:1.05rem;color:var(--book)">¥${(totals[m.name]||0).toLocaleString()}</div><div class="text-m">${m.ratio}%</div></div></div>`).join('');
+}
+
+// ========== 書籍精算 ==========
+function doSettle(){
+  if(!S.sales.length){ toast('⚠️ 売上データがありません'); return; }
+  const totals={}, grand=S.sales.reduce((s,sale)=>{ (sale.split||[]).forEach(sp=>{ totals[sp.name]=(totals[sp.name]||0)+sp.amount; }); return s+sale.total; },0);
+  const note=v('settle-note').trim();
+  const now=new Date();
+  const rec={
+    id: Date.now(),
+    date: now.toISOString().slice(0,10),
+    time: now.toTimeString().slice(0,5),
+    total: grand,
+    salesCount: S.sales.length,
+    split: S.members.map(m=>({name:m.name,ratio:m.ratio,amount:totals[m.name]||0})),
+    note
+  };
+  if(!S.settlements) S.settlements=[];
+  S.settlements.unshift(rec);
+  save(); renderSettlements();
+  set('settle-note','');
+  toast('✅ 精算を記録しました');
+}
+function deleteSettle(id){ S.settlements=S.settlements.filter(s=>s.id!==id); save(); renderSettlements(); toast('🗑 精算履歴を削除しました'); }
+function renderSettlements(){
+  const el=el2('settlement-list'); if(!el) return;
+  if(!S.settlements||!S.settlements.length){ el.innerHTML='<div class="empty" style="padding:14px"><div class="ei">🧾</div>まだ精算記録がありません</div>'; return; }
+  el.innerHTML=S.settlements.map(r=>`
+    <div style="border:1.5px solid #fed7aa;border-radius:10px;padding:11px 13px;margin-bottom:9px;background:#fffbeb">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div>
+          <span style="font-size:.75rem;color:var(--muted)">${r.date} ${r.time||''}</span>
+          ${r.note?`<span style="margin-left:6px;font-size:.8rem;font-weight:700;color:var(--book)">📝 ${r.note}</span>`:''}
+        </div>
+        <button class="btn btn-sm btn-danger" onclick="deleteSettle(${r.id})">削除</button>
+      </div>
+      <div style="font-size:.88rem;color:var(--muted);margin-bottom:5px">書籍販売 総額：<strong style="color:var(--book)">¥${r.total.toLocaleString()}</strong>（${r.salesCount}件）</div>
+      ${(r.split||[]).map(sp=>`<div style="display:flex;justify-content:space-between;font-size:.83rem;padding:3px 0;border-top:1px solid #fed7aa"><span>👤 ${sp.name}（${sp.ratio}%）</span><span style="font-weight:700;color:var(--book)">¥${(sp.amount||0).toLocaleString()}</span></div>`).join('')}
+    </div>`).join('');
+}
+
+// ========== REPORT ==========
+function renderReport(){
+  const lecture=S.txs.filter(t=>t.type==='lecture').reduce((s,t)=>s+t.amount,0);
+  const expense=S.txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const yataTot=S.treatments.reduce((s,t)=>s+t.amount,0);
+  const bookTot=S.sales.reduce((s,t)=>s+t.total,0);
+  const incomeTotal=lecture+yataTot, profit=incomeTotal-expense;
+  el2('rpt-lecture').textContent='¥'+lecture.toLocaleString();
+  el2('rpt-yata').textContent='¥'+yataTot.toLocaleString();
+  el2('rpt-book').textContent='¥'+bookTot.toLocaleString();
+  el2('rpt-exp').textContent='¥'+expense.toLocaleString();
+  el2('rpt-profit').textContent=(profit>=0?'+':'')+'¥'+profit.toLocaleString();
+  el2('rpt-profit').style.color=profit>=0?'var(--primary)':'var(--danger)';
+  // 書籍販売チーム別枠（レポート内）
+  const bTotals={};
+  S.members.forEach(m=>bTotals[m.name]=0);
+  S.sales.forEach(s=>(s.split||[]).forEach(sp=>{ if(bTotals[sp.name]!==undefined) bTotals[sp.name]+=sp.amount; }));
+  const bInlineEl=el2('rpt-book-split-inline');
+  if(S.members.length) bInlineEl.innerHTML=S.members.map(m=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 2px;border-top:1px dashed #fed7aa"><span style="font-size:.84rem;font-weight:600">${m.name}<span style="font-size:.72rem;color:var(--muted);margin-left:4px">（${m.ratio}%）</span></span><span style="font-weight:800;color:var(--book)">¥${(bTotals[m.name]||0).toLocaleString()}</span></div>`).join('');
+  else bInlineEl.innerHTML='<div style="font-size:.78rem;color:var(--muted)">チームメンバーを登録してください</div>';
+
+  // Team
+  const teamEl=el2('rpt-team');
+  if(!S.members.length||!S.sales.length){ teamEl.innerHTML='<div class="empty"><div class="ei">👥</div>データがありません</div>'; }
+  else{
+    const totals={};
+    S.members.forEach(m=>totals[m.name]=0);
+    S.sales.forEach(s=>(s.split||[]).forEach(sp=>{ if(totals[sp.name]!==undefined) totals[sp.name]+=sp.amount; }));
+    teamEl.innerHTML=S.members.map(m=>`<div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--border)"><div class="m-avatar">${m.name.charAt(0)}</div><div style="flex:1;font-weight:700">${m.name}</div><span class="badge b-book">${m.ratio}%</span><div class="fw" style="font-size:1.05rem;color:var(--book)">¥${(totals[m.name]||0).toLocaleString()}</div></div>`).join('');
+  }
+
+  // Income doughnut
+  if(chartIncome) chartIncome.destroy();
+  chartIncome=new Chart(document.getElementById('incomeChart'),{type:'doughnut',data:{labels:['📡 講演会収入','🤲 八咫活法'],datasets:[{data:[lecture,yataTot],backgroundColor:['#0ea5e9','#10b981']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:12}}}}}});
+
+  // Expense doughnut
+  if(chartExp) chartExp.destroy();
+  const expCats={};
+  S.txs.filter(t=>t.type==='expense').forEach(t=>{ expCats[t.category]=(expCats[t.category]||0)+t.amount; });
+  const expKeys=Object.keys(expCats);
+  chartExp=new Chart(document.getElementById('expChart'),{type:'doughnut',data:{labels:expKeys.length?expKeys:['データなし'],datasets:[{data:expKeys.length?Object.values(expCats):[1],backgroundColor:['#ef4444','#dc2626','#fca5a5','#f87171','#fb923c','#fbbf24','#a3e635']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:12}}}}}});
+
+  // Book ranking
+  const bmap={};
+  S.sales.forEach(s=>s.items.forEach(i=>{ if(!bmap[i.name]) bmap[i.name]={emoji:i.emoji,qty:0,total:0}; bmap[i.name].qty+=i.qty; bmap[i.name].total+=i.price*i.qty; }));
+  const brank=Object.entries(bmap).sort((a,b)=>b[1].total-a[1].total);
+  const brEl=el2('book-rank');
+  if(!brank.length) brEl.innerHTML='<div class="empty"><div class="ei">🏆</div>データがありません</div>';
+  else{ const md=['🥇','🥈','🥉']; brEl.innerHTML=brank.slice(0,10).map(([n,d],i)=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)"><span style="font-size:1.3rem">${md[i]||(i+1)+'.'}</span><span style="font-size:1.2rem">${d.emoji}</span><span style="flex:1;font-weight:700">${n}</span><span class="text-m">${d.qty}冊</span><span class="fw" style="color:var(--book)">¥${d.total.toLocaleString()}</span></div>`).join(''); }
+
+  // Yata ranking
+  const ymap={};
+  S.treatments.forEach(t=>{ if(!ymap[t.menuName]) ymap[t.menuName]={cnt:0,total:0}; ymap[t.menuName].cnt++; ymap[t.menuName].total+=t.amount; });
+  const yrank=Object.entries(ymap).sort((a,b)=>b[1].total-a[1].total);
+  const yrEl=el2('yata-rank');
+  if(!yrank.length) yrEl.innerHTML='<div class="empty"><div class="ei">🌿</div>データがありません</div>';
+  else{ const md=['🥇','🥈','🥉']; yrEl.innerHTML=yrank.slice(0,10).map(([n,d],i)=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)"><span style="font-size:1.3rem">${md[i]||(i+1)+'.'}</span><span style="font-size:1.2rem">🌿</span><span style="flex:1;font-weight:700">${n}</span><span class="text-m">${d.cnt}件</span><span class="fw" style="color:var(--yata)">¥${d.total.toLocaleString()}</span></div>`).join(''); }
+}
+
+// ========== CSV ==========
+function exportSalesCSV(){
+  if(!S.sales.length){ toast('⚠️ データがありません'); return; }
+  let csv='日付,時刻,書籍,合計,受取,お釣り,'+S.members.map(m=>m.name+'('+m.ratio+'%)').join(',') +'\n';
+  S.sales.forEach(s=>{ const sp=S.members.map(m=>{ const x=(s.split||[]).find(r=>r.name===m.name); return x?x.amount:0; }); csv+=`${s.date},${s.time},"${s.items.map(i=>`${i.name}×${i.qty}`).join('/')}",${s.total},${s.received},${s.change},${sp.join(',')}\n`; });
+  dlCSV(csv,'書籍売上.csv');
+}
+function exportYataCSV(){
+  if(!S.treatments.length){ toast('⚠️ データがありません'); return; }
+  const PAY={transfer:'🏦 振込済み',cash:'💴 現金済み',unpaid:'⏳ 未払い'};
+  let csv='施術日,お客様,メニュー,金額,来院状況,入金状況,振込日,メモ\n';
+  S.treatments.forEach(t=>{
+    csv+=`${t.date},${t.custName},${t.menuName},${t.amount},${t.attended!==false?'来院':'欠席'},${PAY[t.payMethod]||t.payMethod},${t.transferDate||''},"${t.memo||''}"\n`;
+  });
+  dlCSV(csv,'八咫活法記録.csv');
+}
+function exportFinCSV(){
+  if(!S.txs.length){ toast('⚠️ データがありません'); return; }
+  const lbl={lecture:'講演会収入',expense:'経費'};
+  let csv='日付,種別,カテゴリ,メモ,金額\n';
+  S.txs.forEach(t=>{ csv+=`${t.date},${lbl[t.type]||t.type},${t.category},"${t.memo}",${t.amount}\n`; });
+  dlCSV(csv,'収支データ.csv');
+}
+function dlCSV(csv,filename){
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click();
+  toast('✅ CSVをダウンロードしました');
+}
+
+// ========== HELPERS ==========
+function v(id){ const e=document.getElementById(id); return e?e.value:''; }
+function set(id,val){ const e=document.getElementById(id); if(e) e.value=val; }
+function el2(id){ return document.getElementById(id); }
+
+// ========== INIT ==========
+async function init(){
+  await load();
+  const today=new Date().toISOString().slice(0,10);
+  el2('fin-date').value=today;
+  el2('y-date').value=today;
+  el2('pax-date').value=today;
+
+  // 既存施術記録に payMethod がなければ 'unpaid' を補完
+  S.treatments.forEach(t=>{ if(!t.payMethod) t.payMethod='unpaid'; });
+  if(!S.participants) S.participants=[];
+  // マイグレーション: attended・transferDate がない既存データを補完
+  S.participants.forEach(p=>{
+    if(typeof p.attended==='undefined') p.attended=false;
+    if(typeof p.transferDate==='undefined') p.transferDate=(p.payMethod==='transfer'&&p.date)?p.date:'';
+  });
+  S.treatments.forEach(t=>{
+    if(typeof t.transferDate==='undefined') t.transferDate=(t.payMethod==='transfer')?'':'';
+    if(typeof t.attended==='undefined') t.attended=true;  // 既存記録は来院扱い
+  });
+
+  if(!S.products.length){
+    S.products=[{id:1,name:'〇〇入門',price:1500,author:'著者名',emoji:'📗'},{id:2,name:'実践ガイド',price:2000,author:'著者名',emoji:'📘'}];
+  }
+  if(!S.members.length){
+    S.members=[{id:1,name:'著者',ratio:60},{id:2,name:'運営',ratio:40}];
+  }
+  if(!S.menus.length){
+    S.menus=[{id:1,name:'全身調整',price:5000,duration:60},{id:2,name:'部分施術',price:3000,duration:30}];
+  }
+  save();
+
+  // 既存書籍に stock フィールドがなければ null で補完
+  S.products.forEach(p=>{ if(!('stock' in p)) p.stock=null; if(!('sold' in p)) p.sold=0; });
+  // マイグレーション: 旧 eventName/eventDate → events[] に変換
+  if(!S.events) S.events=[];
+  if(S.eventName&&!S.events.length){
+    const ev={id:Date.now(),name:S.eventName,date:S.eventDate||''};
+    S.events.push(ev); S.currentEventId=ev.id;
+    delete S.eventName; delete S.eventDate;
+  }
+  if(!S.settlements) S.settlements=[];
+  if(!S.finArchives) S.finArchives=[];
+  if(typeof S.currentEventId==='undefined') S.currentEventId=S.events.length?S.events[0].id:null;
+  save(); // マイグレーション結果を保存
+
+  // ── 八咫活法 入金リスト：イベント委譲 ──
+  (function(){
+    const pl=el2('yata-payment-list');
+    if(!pl) return;
+    pl.addEventListener('click', function(e){
+      const btn=e.target.closest('.t-pay-btn');
+      if(btn) updateTreatmentPay(+btn.dataset.tid, btn.dataset.method);
+    });
+    pl.addEventListener('change', function(e){
+      if(e.target.classList.contains('t-date-input'))
+        updateTreatmentTransferDate(+e.target.dataset.tid, e.target.value);
+    });
+  })();
+
+  renderEventList(); updateEvtBanners();
+
+  renderProducts(); renderProductGrid(); renderStockSummary();
+  renderSalesHistory(); refreshRegisterStats();
+  renderTxList(); refreshFinance(); renderCats();
+  renderMembers(); renderRatioBar();
+  renderMenuGrid(); renderMenuList(); renderCustomerMini();
+  renderTreatments(); renderYataPayments(); refreshYataStats();
+  renderParticipants();
+  renderSettlements();
+  renderArchives();
+}
+init();
+</script>
+</body>
+</html>
