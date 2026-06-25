@@ -220,6 +220,23 @@ tr:hover td{background:#fafafa}
 .psb-unpaid{background:#fee2e2;border:1.5px solid #fca5a5}
 .pay-sum-box .pv{font-size:1.1rem;font-weight:800}
 .pay-sum-box .pl{font-size:.7rem;font-weight:600;margin-top:2px}
+
+/* 塩・会員 */
+:root{ --salt:#0891b2; --salt-dark:#0e7490; --kaiin:#7c3aed; --kaiin-dark:#6d28d9; }
+.s-cyan{background:#ecfeff;color:#155e75}
+.s-violet{background:#f5f3ff;color:#5b21b6}
+.btn-salt{background:var(--salt);color:#fff}.btn-salt:hover{background:var(--salt-dark)}
+.btn-kaiin{background:var(--kaiin);color:#fff}.btn-kaiin:hover{background:var(--kaiin-dark)}
+.salt-btn{padding:12px 6px;border:2px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;text-align:center;transition:all .2s}
+.salt-btn:hover{border-color:var(--salt);background:#ecfeff;transform:scale(1.03)}
+.salt-btn .p{font-size:.82rem;color:var(--salt);font-weight:700}
+.salt-btn .n{font-size:.78rem;margin-top:3px}
+.kaiin-card{background:#f5f3ff;border:1.5px solid #c4b5fd;border-radius:9px;padding:10px 12px;margin-bottom:7px;position:relative}
+.kaiin-name{font-weight:700;font-size:.92rem;color:#4c1d95}
+.kaiin-sub{font-size:.75rem;color:var(--muted);margin-top:2px}
+.kaiin-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.71rem;font-weight:700}
+.kb-active{background:#d1fae5;color:#065f46}
+.kb-left{background:#fee2e2;color:#991b1b}
 </style>
 </head>
 <body>
@@ -228,6 +245,11 @@ tr:hover td{background:#fafafa}
   <span>🏪</span>
   <h1>イベント収支 &amp; レジアプリ</h1>
   <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+    <span id="hdr-sync-badge" style="display:none;padding:3px 8px;background:rgba(34,197,94,.3);border:1px solid rgba(34,197,94,.6);border-radius:6px;color:#fff;font-size:.68rem;font-weight:700;white-space:nowrap">🟢 同期中</span>
+    <button onclick="openShareModal()" title="他の端末・スマホで使う"
+      style="padding:5px 10px;background:rgba(255,255,255,.25);border:1.5px solid rgba(255,255,255,.5);border-radius:8px;color:#fff;font-size:.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap">
+      🌐 共有
+    </button>
     <button onclick="syncCopy()" title="データをコピーしてブラウザに貼り付けできます"
       style="padding:5px 10px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);border-radius:8px;color:#fff;font-size:.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap">
       📋 コピー
@@ -236,6 +258,17 @@ tr:hover td{background:#fafafa}
       style="padding:5px 10px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);border-radius:8px;color:#fff;font-size:.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap">
       📥 貼付け
     </button>
+  </div>
+</div>
+
+<!-- 他の端末で使うモーダル -->
+<div class="modal-overlay" id="share-modal" onclick="if(event.target===this)closeShareModal()">
+  <div class="modal" style="max-width:520px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 style="margin:0">🌐 他の端末・スマホで使う</h3>
+      <button onclick="closeShareModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--muted);line-height:1">✕</button>
+    </div>
+    <div id="share-modal-body"></div>
   </div>
 </div>
 
@@ -255,6 +288,8 @@ tr:hover td{background:#fafafa}
   <button class="tab-btn" onclick="goTab('finance',this)"><span class="ti">💰</span>収支</button>
   <button class="tab-btn" onclick="goTab('books',this)"><span class="ti">📚</span>書籍</button>
   <button class="tab-btn" onclick="goTab('team',this)"><span class="ti">👥</span>チーム</button>
+  <button class="tab-btn" onclick="goTab('salt',this)"><span class="ti">🧂</span>塩</button>
+  <button class="tab-btn" onclick="goTab('kaiin',this)"><span class="ti">👑</span>会員</button>
   <button class="tab-btn" onclick="goTab('report',this)"><span class="ti">📊</span>レポート</button>
 </div>
 
@@ -585,6 +620,16 @@ tr:hover td{background:#fafafa}
     <div id="f-book-split" style="margin-top:8px"></div>
   </div>
 
+  <!-- 塩販売（別枠） -->
+  <div style="background:linear-gradient(135deg,#ecfeff,#cffafe);border-radius:12px;padding:15px;border:2px solid #67e8f9;margin-bottom:14px">
+    <div style="font-size:.8rem;font-weight:700;color:var(--salt);margin-bottom:10px">🧂 塩販売（別枠・収支には含まれません）</div>
+    <div class="income-row" style="border-color:#67e8f9">
+      <span class="ir-label">塩販売 総額</span>
+      <span class="ir-amt" style="color:var(--salt)" id="f-salt">¥0</span>
+    </div>
+    <div style="font-size:.75rem;color:var(--muted);margin-top:5px" id="f-salt-detail"></div>
+  </div>
+
   <!-- 経費入力 -->
   <div class="card">
     <h2>📤 経費を追加</h2>
@@ -822,6 +867,181 @@ tr:hover td{background:#fafafa}
 
 </div>
 
+<!-- ========== 塩販売 ========== -->
+<div id="tab-salt" class="tab-content">
+
+  <div class="g4">
+    <div class="stat s-cyan"><div class="v" id="sa-today">¥0</div><div class="l">塩売上（今日）</div></div>
+    <div class="stat s-sky"><div class="v" id="sa-count">0</div><div class="l">取引件数</div></div>
+    <div class="stat s-green"><div class="v" id="sa-items">0</div><div class="l">販売個数</div></div>
+    <div class="stat s-cyan"><div class="v" id="sa-total">¥0</div><div class="l">累計売上</div></div>
+  </div>
+
+  <div class="card">
+    <h2>🧂 塩を選択</h2>
+    <div class="prod-grid" id="salt-grid"><div class="empty" style="grid-column:1/-1;padding:18px">下の「商品登録」で塩を追加してください</div></div>
+  </div>
+
+  <div class="card">
+    <div class="flex ai jb" style="margin-bottom:10px">
+      <h2 style="margin:0">🛒 購入リスト</h2>
+      <button class="btn btn-sm btn-danger" onclick="clearSaltCart()">🗑 クリア</button>
+    </div>
+    <div id="salt-cart-items"><div class="empty"><div class="ei">🧂</div>塩を選択してください</div></div>
+    <hr class="divider">
+    <div class="total-box" style="background:#ecfeff"><div class="lbl">合計金額</div><div class="amt" id="salt-cart-total" style="color:var(--salt)">¥0</div></div>
+  </div>
+
+  <div class="card">
+    <h2>💴 お会計</h2>
+    <div class="g2">
+      <div>
+        <label>受取金額</label>
+        <div class="recv-box"><input type="number" id="salt-recv" value="0" min="0" oninput="calcSaltChange()"></div>
+        <div class="quick-row">
+          <button class="qkb" onclick="setSaltRecv(1000)">¥1,000</button>
+          <button class="qkb" onclick="setSaltRecv(5000)">¥5,000</button>
+          <button class="qkb" onclick="setSaltRecv(10000)">¥10,000</button>
+          <button class="qkb" onclick="setSaltExact()">ちょうど</button>
+        </div>
+      </div>
+      <div>
+        <label>お釣り</label>
+        <div class="change-box" style="margin-bottom:11px"><div class="amt" id="salt-change">¥0</div></div>
+        <button class="btn btn-salt btn-block btn-lg" onclick="completeSaltSale()">✅ 会計完了</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="flex ai jb" style="margin-bottom:10px">
+      <h2 style="margin:0">📋 売上履歴</h2>
+      <button class="btn btn-sm btn-outline" onclick="exportSaltCSV()">📥 CSV</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table><thead><tr><th>時刻</th><th>内容</th><th>金額</th><th>受取</th><th>釣銭</th><th></th></tr></thead>
+      <tbody id="salt-tbody"></tbody></table>
+    </div>
+    <div id="salt-empty" class="empty"><div class="ei">🧂</div>まだ売上がありません</div>
+  </div>
+
+  <div class="card">
+    <h2 id="spp-title">🧂 塩商品を登録</h2>
+    <div class="g2">
+      <div class="fg"><label>商品名</label><input type="text" id="spp-name" placeholder="例：岩塩 100g"></div>
+      <div class="fg"><label>価格（円）</label><input type="number" id="spp-price" placeholder="800" min="0"></div>
+    </div>
+    <div class="fg"><label>初期在庫数</label><input type="number" id="spp-stock" placeholder="10" min="0"></div>
+    <button id="spp-submit" class="btn btn-salt btn-block" onclick="addSaltProduct()">＋ 商品を登録</button>
+    <button id="spp-cancel" class="btn btn-outline btn-block mt2" onclick="cancelSaltEdit()" style="display:none">✕ キャンセル</button>
+    <div id="salt-product-list" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- ========== 会員管理 ========== -->
+<div id="tab-kaiin" class="tab-content">
+
+  <!-- ═══ 塩の会員 ═══ -->
+  <div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:13px;padding:15px;margin-bottom:16px;border:2px solid #c4b5fd">
+    <div style="font-size:.95rem;font-weight:800;color:#4c1d95;margin-bottom:12px">🧂 塩の会員</div>
+
+    <div class="g3" style="margin-bottom:12px">
+      <div class="stat s-violet"><div class="v" id="k-total">0</div><div class="l">総会員数</div></div>
+      <div class="stat s-sky"><div class="v" id="k-ippan">0</div><div class="l">一般会員</div></div>
+      <div class="stat s-green"><div class="v" id="k-happy">0</div><div class="l">ハッピー会員</div></div>
+    </div>
+
+    <div style="background:#fff;border-radius:10px;padding:13px;margin-bottom:10px;border:1px solid #c4b5fd">
+      <div style="font-size:.8rem;font-weight:700;color:#7c3aed;margin-bottom:10px" id="k-form-title">＋ 会員を登録</div>
+      <div class="g2">
+        <div class="fg"><label>氏名</label><input type="text" id="k-name" placeholder="例：山田 花子"></div>
+        <div class="fg"><label>会員番号</label><input type="text" id="k-memberno" placeholder="例：K-0001"></div>
+      </div>
+      <div class="g2">
+        <div class="fg"><label>連絡先</label><input type="text" id="k-contact" placeholder="電話番号 / メールアドレス"></div>
+        <div class="fg"><label>会員種別</label>
+          <select id="k-type">
+            <option value="ippan">一般</option>
+            <option value="happy">ハッピー</option>
+          </select>
+        </div>
+      </div>
+      <div class="g2">
+        <div class="fg"><label>紹介者名</label><input type="text" id="k-referrer" placeholder="例：田中 太郎" list="k-referrer-list"><datalist id="k-referrer-list"></datalist></div>
+        <div class="fg"><label>紹介者の会員番号</label><input type="text" id="k-referrerno" placeholder="例：K-0001"></div>
+      </div>
+      <div class="g2">
+        <div class="fg"><label>入会日</label><input type="date" id="k-date"></div>
+        <div class="fg"><label>メモ</label><input type="text" id="k-memo" placeholder="備考など"></div>
+      </div>
+      <button id="k-submit" class="btn btn-kaiin btn-block" onclick="addKaiin()">＋ 会員を登録</button>
+      <button id="k-cancel" class="btn btn-outline btn-block mt2" onclick="cancelKaiinEdit()" style="display:none">✕ キャンセル</button>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <input type="text" id="k-search" placeholder="🔍 氏名・連絡先で検索..." oninput="renderKaiinList()" style="font-size:.82rem;flex:1;margin-right:8px">
+      <button class="btn btn-sm btn-outline" onclick="exportKaiinCSV()">📥 CSV</button>
+    </div>
+    <div id="kaiin-list"><div class="empty"><div class="ei">👑</div>会員を登録してください</div></div>
+  </div>
+
+  <!-- ═══ サプリメント会員 ═══ -->
+  <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:13px;padding:15px;border:2px solid #fcd34d">
+    <div style="font-size:.95rem;font-weight:800;color:#92400e;margin-bottom:12px">💊 サプリメント会員</div>
+
+    <div class="g4" style="margin-bottom:12px">
+      <div class="stat" style="background:#ecfeff;color:#155e75"><div class="v" id="sp-diamond">0</div><div class="l">💎 ダイヤモンド</div></div>
+      <div class="stat" style="background:#f1f5f9;color:#334155"><div class="v" id="sp-platinum">0</div><div class="l">🥈 プラチナ</div></div>
+      <div class="stat" style="background:#fffbeb;color:#92400e"><div class="v" id="sp-gold">0</div><div class="l">🥇 ゴールド</div></div>
+      <div class="stat" style="background:#f8fafc;color:#64748b"><div class="v" id="sp-silver">0</div><div class="l">🥉 シルバー</div></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:12px">
+      <div class="stat s-amber" style="flex:1"><div class="v" id="sp-total">0</div><div class="l">総会員数（在籍中）</div></div>
+      <div class="stat s-red" style="flex:1"><div class="v" id="sp-left">0</div><div class="l">退会者数</div></div>
+    </div>
+
+    <div style="background:#fff;border-radius:10px;padding:13px;margin-bottom:10px;border:1px solid #fcd34d">
+      <div style="font-size:.8rem;font-weight:700;color:#b45309;margin-bottom:10px" id="spp-form-title">＋ 会員を登録</div>
+      <div class="g2">
+        <div class="fg"><label>氏名</label><input type="text" id="spp-name" placeholder="例：山田 花子"></div>
+        <div class="fg"><label>会員番号</label><input type="text" id="spp-memberno" placeholder="例：S-0001"></div>
+      </div>
+      <div class="g2">
+        <div class="fg"><label>連絡先</label><input type="text" id="spp-contact" placeholder="電話番号 / メールアドレス"></div>
+        <div class="fg"><label>ランク</label>
+          <select id="spp-rank">
+            <option value="diamond">💎 ダイヤモンド</option>
+            <option value="platinum">🥈 プラチナ</option>
+            <option value="gold">🥇 ゴールド</option>
+            <option value="silver">🥉 シルバー</option>
+          </select>
+        </div>
+      </div>
+      <div class="g2">
+        <div class="fg"><label>紹介者名</label><input type="text" id="spp-referrer" placeholder="例：田中 太郎" list="spp-referrer-list"><datalist id="spp-referrer-list"></datalist></div>
+        <div class="fg"><label>紹介者の会員番号</label><input type="text" id="spp-referrerno" placeholder="例：S-0001"></div>
+      </div>
+      <div class="g2">
+        <div class="fg"><label>入会日</label><input type="date" id="spp-date"></div>
+        <div class="fg"><label>メモ</label><input type="text" id="spp-memo" placeholder="備考など"></div>
+      </div>
+      <button id="spp-submit" class="btn btn-block btn-warning" onclick="addSuppMember()">＋ 会員を登録</button>
+      <button id="spp-cancel" class="btn btn-outline btn-block mt2" onclick="cancelSuppEdit()" style="display:none">✕ キャンセル</button>
+    </div>
+
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
+      <input type="text" id="spp-search" placeholder="🔍 氏名・連絡先で検索..." oninput="renderSuppList()" style="font-size:.82rem;flex:1;min-width:120px">
+      <select id="spp-filter" onchange="renderSuppList()" style="font-size:.78rem;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px">
+        <option value="all">全員</option>
+        <option value="active">在籍中のみ</option>
+        <option value="left">退会のみ</option>
+      </select>
+      <button class="btn btn-sm btn-outline" onclick="exportSuppCSV()">📥 CSV</button>
+    </div>
+    <div id="supp-list"><div class="empty"><div class="ei">💊</div>会員を登録してください</div></div>
+  </div>
+</div>
+
 <!-- 完了モーダル -->
 <div class="modal-overlay" id="comp-modal">
   <div class="modal">
@@ -934,7 +1154,12 @@ const S = {
   events: [],         // イベント一覧 [{id, name, date}]
   currentEventId: null, // 現在選択中のイベントID
   settlements: [],    // 書籍精算履歴 [{id, date, total, split[], note}]
-  finArchives: []     // イベント収支スナップショット履歴
+  finArchives: [],    // イベント収支スナップショット履歴
+  saltProducts: [],   // 塩商品 [{id, name, price, stock, sold}]
+  saltCart: [],       // 塩カート [{id, qty}]
+  saltSales: [],      // 塩売上履歴 [{id, time, items, total, recv, change}]
+  kaiinList: [],      // 塩の会員 [{id, name, contact, type, date, memo}]
+  suppList: []        // サプリメント会員 [{id, name, contact, rank, date, memo, status}]
 };
 let chartIncome=null, chartExp=null;
 let yataFilter = 'all'; // 'today' | 'week' | 'all' | 'custom'
@@ -1064,6 +1289,94 @@ function updateSyncUI(room){
   const rd = el2('sync-room-display'); if(rd&&room) rd.textContent = room;
   if(form) form.style.display = connected?'none':'block';
   if(discBtn) discBtn.style.display = connected?'block':'none';
+  // ヘッダーバッジ
+  const badge = el2('hdr-sync-badge');
+  if(badge){ badge.style.display = connected ? 'inline-flex' : 'none'; if(room) badge.textContent='🟢 同期中 '+room; }
+}
+
+// ========== 他の端末で使うモーダル ==========
+function openShareModal(){
+  const currentUrl = window.location.href;
+  const isLocal = currentUrl.startsWith('file://') || currentUrl.includes('localhost');
+  const currentRoom = el2('sync-room-display') ? el2('sync-room-display').textContent : '';
+  const isSyncing = !!fbRef;
+
+  const topSection = isLocal
+    ? `<div style="background:#fef3c7;border-radius:9px;padding:12px;border:1px solid #fcd34d;margin-bottom:12px;font-size:.78rem;line-height:1.6;color:#78350f">
+        <b>⚠️ 現在ローカルファイルで開いています</b><br>
+        スマホ・他の端末からアクセスするには、まず<b>ステップ①</b>でウェブに公開してください。
+       </div>`
+    : `<div style="background:#f0fdf4;border-radius:11px;padding:14px;margin-bottom:12px;text-align:center;border:1.5px solid #86efac">
+        <div style="font-size:.78rem;font-weight:700;color:#065f46;margin-bottom:8px">📱 スマホ・タブレットでこのQRコードを読み取ってください</div>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(currentUrl)}"
+             style="border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.1);display:block;margin:0 auto 8px">
+        <div style="font-size:.68rem;color:#065f46;word-break:break-all;background:#dcfce7;padding:5px 8px;border-radius:6px">${currentUrl}</div>
+       </div>`;
+
+  const syncSection = isSyncing
+    ? `<div style="background:#d1fae5;border-radius:9px;padding:12px;border:1.5px solid #6ee7b7;text-align:center">
+        <div style="font-size:.87rem;font-weight:800;color:#065f46">🟢 リアルタイム同期中</div>
+        <div style="font-size:.78rem;color:#065f46;margin-top:3px">ルームコード：<b style="font-family:monospace;font-size:.92rem">${currentRoom}</b></div>
+        <div style="font-size:.73rem;color:#047857;margin-top:5px">他の端末でも同じURLを開き、同じルームコードで接続してください</div>
+        <button class="btn btn-sm" style="background:#ef4444;color:#fff;margin-top:10px" onclick="closeShareModal();disconnectSync()">切断する</button>
+       </div>`
+    : `<div style="background:linear-gradient(135deg,#fff7ed,#ffedd5);border-radius:11px;padding:14px;border:2px solid #fed7aa">
+        <div style="font-size:.87rem;font-weight:800;color:#c2410c;margin-bottom:3px">🔄 ステップ②　全端末をリアルタイム同期</div>
+        <div style="font-size:.74rem;color:#92400e;margin-bottom:10px">同じルームコードを使えば複数人・複数端末でリアルタイム共有できます</div>
+        <div class="fg" style="margin-bottom:8px">
+          <label style="font-size:.74rem;font-weight:700;color:#c2410c">Firebase Database URL</label>
+          <input type="text" id="share-db-url" placeholder="https://xxxx-default-rtdb.firebaseio.com/" style="font-size:.78rem">
+          <div style="font-size:.7rem;color:#9a3412;margin-top:3px">
+            ▶ <a href="https://console.firebase.google.com" target="_blank" style="color:#ea580c;font-weight:700">console.firebase.google.com</a>
+            → 無料プロジェクト作成 → Realtime Database → URLをコピー
+          </div>
+        </div>
+        <div class="fg" style="margin-bottom:10px">
+          <label style="font-size:.74rem;font-weight:700;color:#c2410c">ルームコード（チーム共通の合言葉）</label>
+          <div style="display:flex;gap:6px">
+            <input type="text" id="share-room-input" placeholder="例：yamada2025" style="font-size:.9rem;font-weight:700;flex:1">
+            <button class="btn btn-sm" style="background:#fed7aa;color:#c2410c;white-space:nowrap;flex-shrink:0" onclick="genRoomCode()">🎲 自動生成</button>
+          </div>
+        </div>
+        <button class="btn btn-block" style="background:#f97316;color:#fff" onclick="connectFromShareModal()">🔗 同期を開始する</button>
+       </div>`;
+
+  el2('share-modal-body').innerHTML = `
+    ${topSection}
+    <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:11px;padding:14px;margin-bottom:10px;border:2px solid #93c5fd">
+      <div style="font-size:.87rem;font-weight:800;color:#1e3a8a;margin-bottom:6px">📡 ステップ①　アプリをウェブに公開する（無料・1分）</div>
+      <div style="font-size:.77rem;color:#1e40af;line-height:1.8">
+        <b>1.</b> <a href="https://app.netlify.com/drop" target="_blank" style="color:#2563eb;font-weight:700">app.netlify.com/drop</a> をPCで開く<br>
+        <b>2.</b> <code style="background:#dbeafe;padding:1px 5px;border-radius:4px">index.html</code> をページにドラッグ＆ドロップ<br>
+        <b>3.</b> 数秒で <code style="background:#dbeafe;padding:1px 5px;border-radius:4px">https://〇〇.netlify.app</code> のURLが発行される<br>
+        <b>4.</b> そのURLをスマホ・タブレット・他のPCで開けばOK！
+      </div>
+      <button class="btn btn-block" style="background:#2563eb;color:#fff;margin-top:10px;font-size:.82rem"
+        onclick="window.open('https://app.netlify.com/drop','_blank')">🚀 Netlify Dropを開く（無料）</button>
+    </div>
+    ${syncSection}
+  `;
+  el2('share-modal').classList.add('open');
+}
+
+function closeShareModal(){ el2('share-modal').classList.remove('open'); }
+
+function genRoomCode(){
+  const words=['sakura','yama','kawa','hana','tsuki','hoshi','nami','kaze','mori','sora'];
+  const nums=Math.floor(Math.random()*9000+1000);
+  const w=words[Math.floor(Math.random()*words.length)];
+  const inp=el2('share-room-input'); if(inp) inp.value=w+nums;
+}
+
+function connectFromShareModal(){
+  const url=(el2('share-db-url')||{}).value||'';
+  const room=(el2('share-room-input')||{}).value||'';
+  if(!url.trim()){ toast('⚠️ Firebase Database URLを入力してください'); return; }
+  if(!room.trim()){ toast('⚠️ ルームコードを入力してください'); return; }
+  el2('sync-db-url').value=url.trim();
+  el2('sync-room').value=room.trim();
+  closeShareModal();
+  connectSync();
 }
 
 function refreshAll(){
@@ -1075,6 +1388,9 @@ function refreshAll(){
   renderTreatments(); renderYataPayments(); refreshYataStats();
   renderParticipants(); renderEventList(); updateEvtBanners();
   renderArchives();
+  renderSaltGrid(); renderSaltProductList(); renderSaltSalesHistory(); refreshSaltStats();
+  renderKaiinList(); refreshKaiinStats(); updateKaiinDatalist();
+  renderSuppList(); refreshSuppStats(); updateSuppDatalist();
 }
 
 function restoreSync(){
@@ -2312,7 +2628,395 @@ function v(id){ const e=document.getElementById(id); return e?e.value:''; }
 function set(id,val){ const e=document.getElementById(id); if(e) e.value=val; }
 function el2(id){ return document.getElementById(id); }
 
-// ========== INIT ==========
+// ========== 塩販売 ==========
+let saltEditId = null;
+
+function addSaltProduct(){
+  const name=v('spp-name').trim(), price=+v('spp-price'), stock=+v('spp-stock');
+  if(!name){ toast('⚠️ 商品名を入力してください'); return; }
+  if(saltEditId){
+    const p=S.saltProducts.find(x=>x.id===saltEditId);
+    if(p){ p.name=name; p.price=price; p.stock=stock; }
+    saltEditId=null;
+  } else {
+    S.saltProducts.push({id:Date.now(),name,price,stock,sold:0});
+  }
+  set('spp-name',''); set('spp-price',''); set('spp-stock','');
+  el2('spp-title').textContent='🧂 塩商品を登録';
+  el2('spp-submit').textContent='＋ 商品を登録';
+  el2('spp-cancel').style.display='none';
+  save(); renderSaltGrid(); renderSaltProductList(); toast('✅ 保存しました');
+}
+function cancelSaltEdit(){
+  saltEditId=null; set('spp-name',''); set('spp-price',''); set('spp-stock','');
+  el2('spp-title').textContent='🧂 塩商品を登録';
+  el2('spp-submit').textContent='＋ 商品を登録';
+  el2('spp-cancel').style.display='none';
+}
+function editSaltProduct(id){
+  const p=S.saltProducts.find(x=>x.id===id); if(!p) return;
+  saltEditId=id; set('spp-name',p.name); set('spp-price',p.price); set('spp-stock',p.stock);
+  el2('spp-title').textContent='✏️ 商品を編集';
+  el2('spp-submit').textContent='💾 保存する';
+  el2('spp-cancel').style.display='';
+  el2('spp-name').focus();
+}
+function deleteSaltProduct(id){
+  if(!confirm('この商品を削除しますか？')) return;
+  S.saltProducts=S.saltProducts.filter(x=>x.id!==id);
+  save(); renderSaltGrid(); renderSaltProductList(); toast('🗑 削除しました');
+}
+function renderSaltGrid(){
+  const g=el2('salt-grid'); if(!g) return;
+  if(!S.saltProducts.length){ g.innerHTML='<div class="empty" style="grid-column:1/-1;padding:18px">下の「商品登録」で塩を追加してください</div>'; return; }
+  g.innerHTML=S.saltProducts.map(p=>{
+    const inCart=S.saltCart.find(c=>c.id===p.id);
+    const outOfStock=p.stock!==null&&p.stock!==undefined&&(p.stock-(p.sold||0))<=0;
+    return `<button class="salt-btn${outOfStock?' disabled':''}" onclick="addToSaltCart(${p.id})" ${outOfStock?'disabled':''}>
+      <div class="p">¥${p.price.toLocaleString()}</div>
+      <div class="n">${p.name}</div>
+      ${p.stock!=null?`<div style="font-size:.68rem;color:var(--muted)">在庫: ${Math.max(0,p.stock-(p.sold||0))}</div>`:''}
+      ${inCart?`<div style="font-size:.68rem;color:var(--salt);font-weight:700">カート: ${inCart.qty}</div>`:''}
+    </button>`;
+  }).join('');
+}
+function renderSaltProductList(){
+  const el=el2('salt-product-list'); if(!el) return;
+  if(!S.saltProducts.length){ el.innerHTML=''; return; }
+  el.innerHTML=S.saltProducts.map(p=>{
+    const remain=p.stock!=null?Math.max(0,p.stock-(p.sold||0)):null;
+    const lowStock=remain!=null&&remain<=3&&remain>0;
+    const outStock=remain===0;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:.88rem">${p.name}</div>
+        <div style="font-size:.75rem;color:var(--muted)">¥${p.price.toLocaleString()}
+          ${remain!=null?` / 在庫: <span style="font-weight:700;color:${outStock?'var(--danger)':lowStock?'var(--warning)':'var(--success)'}">
+            ${outStock?'⚠️ 売切れ':lowStock?'⚠️ 残り'+remain:remain+'個'}</span>`:''}
+        </div>
+      </div>
+      <div style="display:flex;gap:5px">
+        <button class="btn btn-sm btn-outline" onclick="editSaltProduct(${p.id})">✏️</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteSaltProduct(${p.id})">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function addToSaltCart(id){
+  const p=S.saltProducts.find(x=>x.id===id); if(!p) return;
+  const remain=p.stock!=null?Math.max(0,p.stock-(p.sold||0)):Infinity;
+  const inCart=S.saltCart.find(c=>c.id===id);
+  const currentQty=inCart?inCart.qty:0;
+  if(remain<=currentQty){ toast('⚠️ 在庫が不足しています'); return; }
+  if(inCart) inCart.qty++;
+  else S.saltCart.push({id,qty:1});
+  renderSaltCartItems(); renderSaltGrid(); calcSaltChange();
+}
+function changeSaltQty(id,d){
+  const c=S.saltCart.find(x=>x.id===id); if(!c) return;
+  if(d>0){
+    const p=S.saltProducts.find(x=>x.id===id);
+    if(p&&p.stock!=null&&(p.stock-(p.sold||0))<=(c.qty)){ toast('⚠️ 在庫が不足しています'); return; }
+  }
+  c.qty+=d;
+  if(c.qty<=0) S.saltCart=S.saltCart.filter(x=>x.id!==id);
+  renderSaltCartItems(); renderSaltGrid(); calcSaltChange();
+}
+function renderSaltCartItems(){
+  const el=el2('salt-cart-items'); if(!el) return;
+  if(!S.saltCart.length){ el.innerHTML='<div class="empty"><div class="ei">🧂</div>塩を選択してください</div>'; set('salt-cart-total','¥0'); return; }
+  let total=0;
+  el.innerHTML=S.saltCart.map(c=>{
+    const p=S.saltProducts.find(x=>x.id===c.id); if(!p) return '';
+    const sub=p.price*c.qty; total+=sub;
+    return `<div class="cart-item">
+      <span class="ci-name">${p.name}</span>
+      <div class="qc">
+        <button class="qb" onclick="changeSaltQty(${c.id},-1)">−</button>
+        <span class="qn">${c.qty}</span>
+        <button class="qb" onclick="changeSaltQty(${c.id},1)">＋</button>
+      </div>
+      <span class="ci-sub" style="color:var(--salt)">¥${sub.toLocaleString()}</span>
+    </div>`;
+  }).join('');
+  el2('salt-cart-total').textContent='¥'+total.toLocaleString();
+}
+function clearSaltCart(){ S.saltCart=[]; renderSaltCartItems(); renderSaltGrid(); calcSaltChange(); }
+function getSaltCartTotal(){ return S.saltCart.reduce((s,c)=>{ const p=S.saltProducts.find(x=>x.id===c.id); return s+(p?p.price*c.qty:0); },0); }
+function calcSaltChange(){
+  const total=getSaltCartTotal(), recv=+v('salt-recv')||0;
+  el2('salt-change').textContent='¥'+(Math.max(0,recv-total)).toLocaleString();
+}
+function setSaltRecv(n){ set('salt-recv',n); calcSaltChange(); }
+function setSaltExact(){ set('salt-recv',getSaltCartTotal()); calcSaltChange(); }
+function completeSaltSale(){
+  const total=getSaltCartTotal();
+  if(!S.saltCart.length){ toast('⚠️ カートに商品がありません'); return; }
+  const recv=+v('salt-recv')||0;
+  if(recv<total){ toast('⚠️ 受取金額が不足しています'); return; }
+  // 販売数を加算（stock=初期在庫、sold=累計販売数）
+  S.saltCart.forEach(c=>{
+    const p=S.saltProducts.find(x=>x.id===c.id);
+    if(p) p.sold=(p.sold||0)+c.qty;
+  });
+  const items=S.saltCart.map(c=>{ const p=S.saltProducts.find(x=>x.id===c.id); return p?`${p.name}×${c.qty}`:''; }).filter(Boolean);
+  S.saltSales.unshift({id:Date.now(),time:new Date().toLocaleString('ja-JP'),items,total,recv,change:recv-total});
+  S.saltCart=[];
+  save(); renderSaltGrid(); renderSaltCartItems(); renderSaltSalesHistory(); refreshSaltStats();
+  set('salt-recv',0); calcSaltChange();
+  toast('✅ 会計完了！ お釣り ¥'+(recv-total).toLocaleString());
+}
+function deleteSaltSale(id){
+  S.saltSales=S.saltSales.filter(x=>x.id!==id);
+  save(); renderSaltSalesHistory(); refreshSaltStats(); toast('🗑 削除しました');
+}
+function renderSaltSalesHistory(){
+  const tbody=el2('salt-tbody'), empty=el2('salt-empty'); if(!tbody) return;
+  if(!S.saltSales.length){ tbody.innerHTML=''; empty.style.display=''; return; }
+  empty.style.display='none';
+  tbody.innerHTML=S.saltSales.map(s=>`
+    <tr>
+      <td style="font-size:.78rem">${s.time}</td>
+      <td style="font-size:.78rem">${s.items.join(', ')}</td>
+      <td class="fw" style="color:var(--salt)">¥${s.total.toLocaleString()}</td>
+      <td style="font-size:.78rem">¥${s.recv.toLocaleString()}</td>
+      <td style="font-size:.78rem">¥${s.change.toLocaleString()}</td>
+      <td><button class="btn btn-sm btn-danger" onclick="deleteSaltSale(${s.id})">🗑</button></td>
+    </tr>`).join('');
+}
+function refreshSaltStats(){
+  const today=new Date().toLocaleDateString('ja-JP');
+  const todaySales=S.saltSales.filter(s=>s.time.startsWith(today.replace(/\//g,'/')));
+  const todayTotal=todaySales.reduce((a,s)=>a+s.total,0);
+  const totalAll=S.saltSales.reduce((a,s)=>a+s.total,0);
+  const totalItems=S.saltSales.reduce((a,s)=>a+s.items.length,0);
+  if(el2('sa-today')) el2('sa-today').textContent='¥'+todayTotal.toLocaleString();
+  if(el2('sa-count')) el2('sa-count').textContent=S.saltSales.length;
+  if(el2('sa-items')) el2('sa-items').textContent=totalItems;
+  if(el2('sa-total')) el2('sa-total').textContent='¥'+totalAll.toLocaleString();
+  // 収支タブ更新
+  const fs=el2('f-salt'); if(fs) fs.textContent='¥'+totalAll.toLocaleString();
+  const fd=el2('f-salt-detail'); if(fd) fd.textContent=`取引 ${S.saltSales.length}件 / 販売 ${totalItems}点`;
+}
+function exportSaltCSV(){
+  const rows=[['日時','商品','金額','受取','釣銭'],...S.saltSales.map(s=>[s.time,s.items.join(';'),s.total,s.recv,s.change])];
+  const csv=rows.map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,﻿'+encodeURIComponent(csv);
+  a.download='塩売上.csv'; a.click(); toast('📥 CSVをダウンロードしました');
+}
+
+// ========== 会員管理 ==========
+let kaiinEditId = null;
+
+function addKaiin(){
+  const name=v('k-name').trim(), memberno=v('k-memberno').trim(), contact=v('k-contact').trim(),
+        type=v('k-type'), referrer=v('k-referrer').trim(), referrerno=v('k-referrerno').trim(),
+        date=v('k-date'), memo=v('k-memo').trim();
+  if(!name){ toast('⚠️ 氏名を入力してください'); return; }
+  if(kaiinEditId){
+    const m=S.kaiinList.find(x=>x.id===kaiinEditId);
+    if(m) Object.assign(m,{name,memberno,contact,type,referrer,referrerno,date,memo});
+    kaiinEditId=null;
+  } else {
+    S.kaiinList.push({id:Date.now(),name,memberno,contact,type,referrer,referrerno,date,memo});
+  }
+  ['k-name','k-memberno','k-contact','k-referrer','k-referrerno','k-memo'].forEach(i=>set(i,''));
+  set('k-type','ippan');
+  el2('k-form-title').textContent='＋ 会員を登録';
+  el2('k-submit').textContent='＋ 会員を登録';
+  el2('k-cancel').style.display='none';
+  save(); renderKaiinList(); refreshKaiinStats(); updateKaiinDatalist(); toast('✅ 保存しました');
+}
+function cancelKaiinEdit(){
+  kaiinEditId=null;
+  ['k-name','k-memberno','k-contact','k-referrer','k-referrerno','k-memo'].forEach(i=>set(i,''));
+  set('k-type','ippan');
+  el2('k-form-title').textContent='＋ 会員を登録';
+  el2('k-submit').textContent='＋ 会員を登録';
+  el2('k-cancel').style.display='none';
+}
+function editKaiin(id){
+  const m=S.kaiinList.find(x=>x.id===id); if(!m) return;
+  kaiinEditId=id;
+  set('k-name',m.name); set('k-memberno',m.memberno||''); set('k-contact',m.contact||'');
+  set('k-type',m.type||'ippan'); set('k-referrer',m.referrer||''); set('k-referrerno',m.referrerno||'');
+  set('k-date',m.date||''); set('k-memo',m.memo||'');
+  el2('k-form-title').textContent='✏️ 会員情報を編集';
+  el2('k-submit').textContent='💾 保存する';
+  el2('k-cancel').style.display='';
+  el2('k-name').focus(); goTab('kaiin', document.querySelector('[onclick*="kaiin"]'));
+}
+function deleteKaiin(id){
+  if(!confirm('この会員情報を削除しますか？')) return;
+  S.kaiinList=S.kaiinList.filter(x=>x.id!==id);
+  save(); renderKaiinList(); refreshKaiinStats(); toast('🗑 削除しました');
+}
+function updateKaiinDatalist(){
+  const dl=el2('k-referrer-list'); if(!dl) return;
+  dl.innerHTML=S.kaiinList.map(m=>`<option value="${m.name}"${m.memberno?' data-no="'+m.memberno+'"':''}>`).join('');
+}
+function renderKaiinList(){
+  const el=el2('kaiin-list'); if(!el) return;
+  const q=(v('k-search')||'').trim().toLowerCase();
+  let list=S.kaiinList;
+  if(q) list=list.filter(m=>(m.name+(m.contact||'')+(m.memberno||'')).toLowerCase().includes(q));
+  if(!list.length){ el.innerHTML=`<div class="empty"><div class="ei">👑</div>${q?'該当する会員が見つかりません':'会員を登録してください'}</div>`; return; }
+  el.innerHTML=list.map(m=>{
+    const isHappy=m.type==='happy';
+    return `<div class="kaiin-card" style="${isHappy?'background:linear-gradient(135deg,#fdf4ff,#fae8ff);border-color:#d8b4fe':''}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div class="kaiin-name">${m.name}
+            ${m.memberno?`<span style="font-size:.72rem;font-weight:600;color:var(--muted);margin-left:5px">#${m.memberno}</span>`:''}
+            <span class="kaiin-badge" style="margin-left:6px;background:${isHappy?'#f3e8ff;color:#6b21a8':'#dbeafe;color:#1e40af'}">
+              ${isHappy?'🌟 ハッピー':'👤 一般'}
+            </span>
+          </div>
+          ${m.contact?`<div class="kaiin-sub">📞 ${m.contact}</div>`:''}
+          ${m.referrer?`<div class="kaiin-sub">👤 紹介者: <b>${m.referrer}</b>${m.referrerno?' (#'+m.referrerno+')':''}</div>`:''}
+          ${m.date?`<div class="kaiin-sub">📅 入会日: ${m.date}</div>`:''}
+          ${m.memo?`<div class="kaiin-sub">📝 ${m.memo}</div>`:''}
+        </div>
+        <div style="display:flex;gap:5px;flex-shrink:0">
+          <button class="btn btn-sm" style="background:#e0e7ff;color:#4338ca" onclick="editKaiin(${m.id})">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteKaiin(${m.id})">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function refreshKaiinStats(){
+  const ippan=S.kaiinList.filter(m=>m.type!=='happy').length;
+  const happy=S.kaiinList.filter(m=>m.type==='happy').length;
+  if(el2('k-total')) el2('k-total').textContent=S.kaiinList.length;
+  if(el2('k-ippan')) el2('k-ippan').textContent=ippan;
+  if(el2('k-happy')) el2('k-happy').textContent=happy;
+}
+function exportKaiinCSV(){
+  const rows=[['会員番号','氏名','連絡先','会員種別','紹介者名','紹介者会員番号','入会日','メモ'],
+    ...S.kaiinList.map(m=>[m.memberno||'',m.name,m.contact||'',m.type==='happy'?'ハッピー':'一般',m.referrer||'',m.referrerno||'',m.date||'',m.memo||''])];
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,﻿'+encodeURIComponent(csv);
+  a.download='塩会員一覧.csv'; a.click(); toast('📥 CSVをダウンロードしました');
+}
+
+// ========== サプリメント会員 ==========
+let suppEditId = null;
+const SUPP_RANKS = {diamond:'💎 ダイヤモンド', platinum:'🥈 プラチナ', gold:'🥇 ゴールド', silver:'🥉 シルバー'};
+const SUPP_COLORS = {
+  diamond:{bg:'#ecfeff',color:'#155e75',border:'#67e8f9'},
+  platinum:{bg:'#f1f5f9',color:'#334155',border:'#94a3b8'},
+  gold:{bg:'#fffbeb',color:'#92400e',border:'#fcd34d'},
+  silver:{bg:'#f8fafc',color:'#475569',border:'#cbd5e1'}
+};
+
+function addSuppMember(){
+  const name=v('spp-name').trim(), memberno=v('spp-memberno').trim(), contact=v('spp-contact').trim(),
+        rank=v('spp-rank'), referrer=v('spp-referrer').trim(), referrerno=v('spp-referrerno').trim(),
+        date=v('spp-date'), memo=v('spp-memo').trim();
+  if(!name){ toast('⚠️ 氏名を入力してください'); return; }
+  if(suppEditId){
+    const m=S.suppList.find(x=>x.id===suppEditId);
+    if(m) Object.assign(m,{name,memberno,contact,rank,referrer,referrerno,date,memo});
+    suppEditId=null;
+  } else {
+    S.suppList.push({id:Date.now(),name,memberno,contact,rank,referrer,referrerno,date,memo,status:'active'});
+  }
+  ['spp-name','spp-memberno','spp-contact','spp-referrer','spp-referrerno','spp-memo'].forEach(i=>set(i,''));
+  set('spp-rank','diamond');
+  el2('spp-form-title').textContent='＋ 会員を登録';
+  el2('spp-submit').textContent='＋ 会員を登録';
+  el2('spp-cancel').style.display='none';
+  save(); renderSuppList(); refreshSuppStats(); updateSuppDatalist(); toast('✅ 保存しました');
+}
+function cancelSuppEdit(){
+  suppEditId=null;
+  ['spp-name','spp-memberno','spp-contact','spp-referrer','spp-referrerno','spp-memo'].forEach(i=>set(i,''));
+  set('spp-rank','diamond');
+  el2('spp-form-title').textContent='＋ 会員を登録';
+  el2('spp-submit').textContent='＋ 会員を登録';
+  el2('spp-cancel').style.display='none';
+}
+function editSuppMember(id){
+  const m=S.suppList.find(x=>x.id===id); if(!m) return;
+  suppEditId=id;
+  set('spp-name',m.name); set('spp-memberno',m.memberno||''); set('spp-contact',m.contact||'');
+  set('spp-rank',m.rank||'diamond'); set('spp-referrer',m.referrer||''); set('spp-referrerno',m.referrerno||'');
+  set('spp-date',m.date||''); set('spp-memo',m.memo||'');
+  el2('spp-form-title').textContent='✏️ 会員情報を編集';
+  el2('spp-submit').textContent='💾 保存する';
+  el2('spp-cancel').style.display='';
+  el2('spp-name').focus();
+}
+function updateSuppDatalist(){
+  const dl=el2('spp-referrer-list'); if(!dl) return;
+  dl.innerHTML=S.suppList.filter(m=>m.status!=='left').map(m=>`<option value="${m.name}"${m.memberno?' data-no="'+m.memberno+'"':''}>`).join('');
+}
+function toggleSuppStatus(id){
+  const m=S.suppList.find(x=>x.id===id); if(!m) return;
+  m.status=m.status==='active'?'left':'active';
+  save(); renderSuppList(); refreshSuppStats();
+}
+function deleteSuppMember(id){
+  if(!confirm('この会員情報を削除しますか？')) return;
+  S.suppList=S.suppList.filter(x=>x.id!==id);
+  save(); renderSuppList(); refreshSuppStats(); toast('🗑 削除しました');
+}
+function renderSuppList(){
+  const el=el2('supp-list'); if(!el) return;
+  const q=(v('spp-search')||'').trim().toLowerCase();
+  const f=v('spp-filter')||'all';
+  let list=S.suppList;
+  if(q) list=list.filter(m=>(m.name+(m.contact||'')+(m.memberno||'')).toLowerCase().includes(q));
+  if(f==='active') list=list.filter(m=>m.status==='active');
+  if(f==='left')   list=list.filter(m=>m.status==='left');
+  if(!list.length){ el.innerHTML=`<div class="empty"><div class="ei">💊</div>${q||f!=='all'?'該当する会員が見つかりません':'会員を登録してください'}</div>`; return; }
+  el.innerHTML=list.map(m=>{
+    const r=m.rank||'silver'; const c=SUPP_COLORS[r]||SUPP_COLORS.silver;
+    const isLeft=m.status==='left';
+    return `<div class="kaiin-card" style="background:${isLeft?'#f8fafc':c.bg};border-color:${isLeft?'#e2e8f0':c.border};opacity:${isLeft?'.7':'1'}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <div>
+          <div class="kaiin-name" style="color:${isLeft?'var(--muted)':c.color}">${m.name}
+            ${m.memberno?`<span style="font-size:.72rem;font-weight:600;color:var(--muted);margin-left:5px">#${m.memberno}</span>`:''}
+            <span class="kaiin-badge" style="margin-left:6px;background:${c.bg};color:${c.color};border:1px solid ${c.border}">${SUPP_RANKS[r]}</span>
+            ${isLeft?'<span class="kaiin-badge kb-left" style="margin-left:4px">🔴 退会</span>':''}
+          </div>
+          ${m.contact?`<div class="kaiin-sub">📞 ${m.contact}</div>`:''}
+          ${m.referrer?`<div class="kaiin-sub">👤 紹介者: <b>${m.referrer}</b>${m.referrerno?' (#'+m.referrerno+')':''}</div>`:''}
+          ${m.date?`<div class="kaiin-sub">📅 入会日: ${m.date}</div>`:''}
+          ${m.memo?`<div class="kaiin-sub">📝 ${m.memo}</div>`:''}
+        </div>
+        <div style="display:flex;gap:5px;flex-shrink:0;flex-direction:column;align-items:flex-end">
+          <div style="display:flex;gap:5px">
+            <button class="btn btn-sm" style="background:#e0e7ff;color:#4338ca" onclick="editSuppMember(${m.id})">✏️</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteSuppMember(${m.id})">🗑</button>
+          </div>
+          <button class="btn btn-sm" style="background:${isLeft?'#d1fae5;color:#065f46':'#fee2e2;color:#991b1b'}" onclick="toggleSuppStatus(${m.id})">${isLeft?'復帰':'退会'}</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function refreshSuppStats(){
+  const active=S.suppList.filter(m=>m.status==='active');
+  const left=S.suppList.filter(m=>m.status==='left').length;
+  if(el2('sp-total'))    el2('sp-total').textContent=active.length;
+  if(el2('sp-left'))     el2('sp-left').textContent=left;
+  if(el2('sp-diamond'))  el2('sp-diamond').textContent=active.filter(m=>m.rank==='diamond').length;
+  if(el2('sp-platinum')) el2('sp-platinum').textContent=active.filter(m=>m.rank==='platinum').length;
+  if(el2('sp-gold'))     el2('sp-gold').textContent=active.filter(m=>m.rank==='gold').length;
+  if(el2('sp-silver'))   el2('sp-silver').textContent=active.filter(m=>m.rank==='silver').length;
+}
+function exportSuppCSV(){
+  const rows=[['会員番号','氏名','連絡先','ランク','紹介者名','紹介者会員番号','入会日','メモ','状態'],
+    ...S.suppList.map(m=>[m.memberno||'',m.name,m.contact||'',SUPP_RANKS[m.rank]||m.rank,m.referrer||'',m.referrerno||'',m.date||'',m.memo||'',m.status==='active'?'在籍中':'退会'])];
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,﻿'+encodeURIComponent(csv);
+  a.download='サプリ会員一覧.csv'; a.click(); toast('📥 CSVをダウンロードしました');
+}
+
+// ========== HELPERS ==========
 async function init(){
   await load();
   const today=new Date().toISOString().slice(0,10);
@@ -2355,6 +3059,11 @@ async function init(){
   }
   if(!S.settlements) S.settlements=[];
   if(!S.finArchives) S.finArchives=[];
+  if(!S.saltProducts) S.saltProducts=[];
+  if(!S.saltCart) S.saltCart=[];
+  if(!S.saltSales) S.saltSales=[];
+  if(!S.kaiinList) S.kaiinList=[];
+  if(!S.suppList) S.suppList=[];
   if(typeof S.currentEventId==='undefined') S.currentEventId=S.events.length?S.events[0].id:null;
   save(); // マイグレーション結果を保存
 
@@ -2383,6 +3092,12 @@ async function init(){
   renderParticipants();
   renderSettlements();
   renderArchives();
+  // 塩・会員
+  const today2=new Date().toISOString().slice(0,10);
+  set('k-date', today2); set('spp-date', today2);
+  renderSaltGrid(); renderSaltProductList(); renderSaltSalesHistory(); refreshSaltStats();
+  renderKaiinList(); refreshKaiinStats();
+  renderSuppList(); refreshSuppStats();
 }
 init();
 </script>
