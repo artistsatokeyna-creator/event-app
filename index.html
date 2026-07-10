@@ -630,6 +630,17 @@ tr:hover td{background:#fafafa}
     <div style="font-size:.75rem;color:var(--muted);margin-top:5px" id="f-salt-detail"></div>
   </div>
 
+  <!-- 立替・支払い対象者 登録 -->
+  <div class="card">
+    <h2>👥 立替・支払い対象者</h2>
+    <p style="font-size:.8rem;color:var(--muted);margin-bottom:10px">経費を立て替えた人／報酬を支払う相手を登録しておくと、経費追加時に選択できます。</p>
+    <div class="g2" style="align-items:end">
+      <div class="fg"><label>名前</label><input type="text" id="payer-name" placeholder="例：田中さん"></div>
+      <button class="btn btn-block" style="background:var(--primary);color:#fff;height:42px" onclick="addPayer()">＋ 追加</button>
+    </div>
+    <div id="payer-list" style="margin-top:10px"></div>
+  </div>
+
   <!-- 経費入力 -->
   <div class="card">
     <h2>📤 経費を追加</h2>
@@ -638,12 +649,12 @@ tr:hover td{background:#fafafa}
       <div class="fg"><label>日付</label><input type="date" id="fin-date"></div>
     </div>
     <div class="g2">
-      <div class="fg"><label>カテゴリ</label><select id="fin-cat" onchange="onFinCatChange()"></select></div>
+      <div class="fg"><label>カテゴリ</label><select id="fin-cat"></select></div>
       <div class="fg"><label>メモ</label><input type="text" id="fin-memo" placeholder="内容を入力"></div>
     </div>
-    <div class="fg" id="fin-staff-wrap" style="display:none">
-      <label>👤 スタッフ名</label>
-      <input type="text" id="fin-staff" placeholder="例：田中さん">
+    <div class="fg">
+      <label>👤 対象者（立て替えた人／報酬の支払先）</label>
+      <select id="fin-payer"></select>
     </div>
     <button class="btn btn-danger btn-block" onclick="addTx()">＋ 経費を追加</button>
   </div>
@@ -659,6 +670,19 @@ tr:hover td{background:#fafafa}
       <tbody id="fin-tbody"></tbody></table>
     </div>
     <div id="fin-empty" class="empty"><div class="ei">💰</div>まだ経費がありません</div>
+  </div>
+
+  <!-- 立替・報酬 精算サマリー -->
+  <div class="card" style="border:2px solid #c7d2fe;background:linear-gradient(135deg,#eef2ff,#e0e7ff)">
+    <h2 style="color:var(--primary)">💸 誰にいくら払うか（立替・報酬 精算サマリー）</h2>
+    <p style="font-size:.8rem;color:var(--muted);margin-bottom:10px">対象者ごとに、まだ精算していない立替・報酬の合計を表示します。支払ったら「精算済みにする」を押してください。</p>
+    <div id="payer-summary-list"></div>
+  </div>
+
+  <!-- 精算履歴 -->
+  <div class="card">
+    <h2>📜 精算履歴</h2>
+    <div id="payer-settle-history"></div>
   </div>
 
   <!-- イベント収支を記録 -->
@@ -1159,7 +1183,9 @@ const S = {
   saltCart: [],       // 塩カート [{id, qty}]
   saltSales: [],      // 塩売上履歴 [{id, time, items, total, recv, change}]
   kaiinList: [],      // 塩の会員 [{id, name, contact, type, date, memo}]
-  suppList: []        // サプリメント会員 [{id, name, contact, rank, date, memo, status}]
+  suppList: [],       // サプリメント会員 [{id, name, contact, rank, date, memo, status}]
+  payers: [],           // 経費の立替・報酬 対象者 [{id, name}]
+  payerSettlements: []  // 立替・報酬 精算履歴 [{id, date, payerKey, name, amount}]
 };
 let chartIncome=null, chartExp=null;
 let yataFilter = 'all'; // 'today' | 'week' | 'all' | 'custom'
@@ -1383,6 +1409,7 @@ function refreshAll(){
   renderProducts(); renderProductGrid(); renderStockSummary();
   renderSalesHistory(); refreshRegisterStats();
   renderTxList(); refreshFinance(); renderCats();
+  renderPayers(); renderPayerSelect(); renderPayerSummary(); renderPayerSettleHistory();
   renderMembers(); renderRatioBar(); renderBookDist(); renderSettlements();
   renderMenuGrid(); renderMenuList(); renderCustomerMini();
   renderTreatments(); renderYataPayments(); refreshYataStats();
@@ -1501,7 +1528,7 @@ function goTab(tab, btn){
   if(btn) btn.classList.add('active');
   document.getElementById('tab-'+tab).classList.add('active');
   if(tab==='lecture'){ renderEventList(); updateEvtBanners(); renderParticipants(); refreshFinance(); }
-  if(tab==='finance'){ renderCats(); refreshFinance(); renderArchives(); }
+  if(tab==='finance'){ renderCats(); refreshFinance(); renderArchives(); renderPayers(); renderPayerSelect(); renderPayerSummary(); renderPayerSettleHistory(); }
   if(tab==='report') renderReport();
   if(tab==='team'){ renderBookDist(); renderSettlements(); }
   if(tab==='yata'){ updateEvtBanners(); renderMenuGrid(); renderCustomerMini(); renderTreatments(); renderYataPayments(); refreshYataStats(); }
@@ -2062,32 +2089,110 @@ function renderCats(){
   const sel=el2('fin-cat'), cats=S.cats['expense']||[];
   sel.innerHTML='<option value="">カテゴリを選択</option>'+cats.map(c=>`<option value="${c}">${c}</option>`).join('');
 }
-function onFinCatChange(){
-  const cat=v('fin-cat');
-  el2('fin-staff-wrap').style.display=(cat==='スタッフ支払い')?'block':'none';
-  if(cat!=='スタッフ支払い') set('fin-staff','');
+// ---- 立替・支払い対象者（登録リスト） ----
+function addPayer(){
+  const name=v('payer-name').trim();
+  if(!name){ toast('⚠️ 名前を入力してください'); return; }
+  if(S.payers.some(p=>p.name===name)){ toast('⚠️ 同じ名前が既に登録されています'); return; }
+  S.payers.push({id:Date.now(),name});
+  save(); renderPayers(); renderPayerSelect();
+  set('payer-name','');
+  toast(`✅ ${name}を追加しました`);
+}
+function delPayer(id){
+  S.payers=S.payers.filter(p=>p.id!==id);
+  save(); renderPayers(); renderPayerSelect(); renderPayerSummary();
+  toast('🗑 削除しました');
+}
+function renderPayers(){
+  const el=el2('payer-list'); if(!el) return;
+  if(!S.payers.length){ el.innerHTML='<div class="empty" style="padding:14px"><div class="ei">👥</div>まだ対象者がいません</div>'; return; }
+  el.innerHTML=S.payers.map(p=>`<span class="badge b-other" style="margin:3px 6px 3px 0;padding:4px 6px 4px 10px;display:inline-flex;align-items:center;gap:6px">👤 ${p.name}<button class="btn btn-sm btn-danger" style="padding:1px 8px" onclick="delPayer(${p.id})">×</button></span>`).join('');
+}
+function renderPayerSelect(){
+  const sel=el2('fin-payer'); if(!sel) return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">－ 対象者なし（口座から直接支払い）</option>'+S.payers.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  if(cur) sel.value=cur;
+}
+// ---- 精算グルーピング（登録済み対象者 + 過去データのスタッフ名の両方に対応） ----
+function payerKeyOf(t){
+  if(t.payerId) return 'id:'+t.payerId;
+  if(t.payerName) return 'name:'+t.payerName;
+  if(t.staffName) return 'name:'+t.staffName;
+  return null;
+}
+function payerGroups(){
+  const map={};
+  S.txs.forEach(t=>{
+    if(t.type!=='expense') return;
+    const key=payerKeyOf(t);
+    if(!key) return;
+    const name=t.payerName||t.staffName;
+    if(!map[key]) map[key]={key,name,unsettled:0,settled:0,count:0};
+    map[key].count++;
+    if(t.settledAt) map[key].settled+=t.amount; else map[key].unsettled+=t.amount;
+  });
+  return Object.values(map).sort((a,b)=>b.unsettled-a.unsettled);
+}
+function renderPayerSummary(){
+  const el=el2('payer-summary-list'); if(!el) return;
+  const groups=payerGroups();
+  if(!groups.length){ el.innerHTML='<div class="empty"><div class="ei">💸</div>立替・報酬の対象データがありません</div>'; return; }
+  el.innerHTML=groups.map(g=>`
+    <div class="member-card" style="background:#fff;border-color:#c7d2fe;flex-wrap:wrap">
+      <div class="m-avatar" style="background:var(--primary)">${g.name.charAt(0)}</div>
+      <div class="m-info">
+        <div class="m-name">${g.name}</div>
+        <div style="font-size:.75rem;color:var(--muted)">対象 ${g.count}件（精算済み ¥${g.settled.toLocaleString()}）</div>
+      </div>
+      <div style="text-align:right;margin-left:auto">
+        <div class="fw" style="font-size:1.05rem;color:${g.unsettled>0?'var(--expense)':'var(--muted)'}">未精算 ¥${g.unsettled.toLocaleString()}</div>
+        ${g.unsettled>0?`<button class="btn btn-sm" style="background:var(--success);color:#fff;margin-top:4px" onclick="settlePayer('${g.key}')">✅ 精算済みにする</button>`:''}
+      </div>
+    </div>`).join('');
+}
+function settlePayer(key){
+  const today=new Date().toISOString().slice(0,10);
+  let amount=0, name='';
+  S.txs.forEach(t=>{
+    if(t.type!=='expense'||t.settledAt) return;
+    if(payerKeyOf(t)!==key) return;
+    t.settledAt=today; amount+=t.amount; name=t.payerName||t.staffName;
+  });
+  if(amount===0) return;
+  S.payerSettlements.unshift({id:Date.now(),date:today,payerKey:key,name,amount});
+  save(); renderTxList(); refreshFinance(); renderPayerSummary(); renderPayerSettleHistory();
+  toast(`✅ ${name}さんに ¥${amount.toLocaleString()} 精算しました`);
+}
+function renderPayerSettleHistory(){
+  const el=el2('payer-settle-history'); if(!el) return;
+  if(!S.payerSettlements.length){ el.innerHTML='<div class="empty" style="padding:14px"><div class="ei">📜</div>精算履歴はありません</div>'; return; }
+  el.innerHTML=S.payerSettlements.slice(0,50).map(s=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 2px;border-bottom:1px dashed var(--border);font-size:.85rem"><span>${s.date} ・ 👤 ${s.name}</span><span class="fw" style="color:var(--primary)">¥${s.amount.toLocaleString()}</span></div>`).join('');
 }
 function addTx(){
   const amount=parseInt(v('fin-amount')), date=v('fin-date'), cat=v('fin-cat'), memo=v('fin-memo').trim();
-  const staffName=(cat==='スタッフ支払い')? v('fin-staff').trim() : '';
+  const payerId=v('fin-payer')?parseInt(v('fin-payer')):null;
+  const payerObj=payerId?S.payers.find(p=>p.id===payerId):null;
+  const payerName=payerObj?payerObj.name:'';
   if(!amount||amount<=0){ toast('⚠️ 金額を入力してください'); return; }
   if(!date){ toast('⚠️ 日付を入力してください'); return; }
-  if(cat==='スタッフ支払い'&&!staffName){ toast('⚠️ スタッフ名を入力してください'); return; }
-  S.txs.unshift({id:Date.now(),type:'expense',amount,date,category:cat||'その他',memo,staffName});
-  save(); renderTxList(); refreshFinance(); toast('✅ 経費を追加しました');
-  set('fin-amount',''); set('fin-memo',''); set('fin-staff','');
-  el2('fin-staff-wrap').style.display='none';
-  el2('fin-cat').value='';
+  S.txs.unshift({id:Date.now(),type:'expense',amount,date,category:cat||'その他',memo,payerId,payerName,settledAt:''});
+  save(); renderTxList(); refreshFinance(); renderPayerSummary(); toast('✅ 経費を追加しました');
+  set('fin-amount',''); set('fin-memo','');
+  el2('fin-cat').value=''; el2('fin-payer').value='';
 }
-function delTx(id){ S.txs=S.txs.filter(t=>t.id!==id); save(); renderTxList(); refreshFinance(); toast('🗑 削除しました'); }
+function delTx(id){ S.txs=S.txs.filter(t=>t.id!==id); save(); renderTxList(); refreshFinance(); renderPayerSummary(); toast('🗑 削除しました'); }
 function renderTxList(){
   const tb=el2('fin-tbody'), emp=el2('fin-empty');
   const sorted=[...S.txs].sort((a,b)=>b.date.localeCompare(a.date));
   if(!sorted.length){ tb.innerHTML=''; emp.style.display='block'; return; }
   emp.style.display='none';
   tb.innerHTML=sorted.slice(0,100).map(t=>{
-    const memoCell = t.category==='スタッフ支払い'&&t.staffName
-      ? `<span style="font-weight:700;color:#7c3aed">👤 ${t.staffName}</span>${t.memo?` <span style="color:var(--muted);font-size:.8rem">${t.memo}</span>`:''}`
+    const nm=t.payerName||t.staffName||'';
+    const settledBadge = nm ? (t.settledAt?`<span style="font-size:.68rem;color:#16a34a;margin-left:4px">✅精算済</span>`:`<span style="font-size:.68rem;color:#dc2626;margin-left:4px">未精算</span>`) : '';
+    const memoCell = nm
+      ? `<span style="font-weight:700;color:#7c3aed">👤 ${nm}</span>${settledBadge}${t.memo?`<br><span style="color:var(--muted);font-size:.8rem">${t.memo}</span>`:''}`
       : (t.memo||'－');
     return `<tr><td class="text-m">${t.date}</td><td><span class="badge b-other">${t.category}</span></td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${memoCell}</td><td class="fw" style="color:var(--expense)">-¥${t.amount.toLocaleString()}</td><td><button class="btn btn-sm btn-danger" onclick="delTx(${t.id})">削除</button></td></tr>`;
   }).join('');
@@ -2613,8 +2718,12 @@ function exportYataCSV(){
 function exportFinCSV(){
   if(!S.txs.length){ toast('⚠️ データがありません'); return; }
   const lbl={lecture:'講演会収入',expense:'経費'};
-  let csv='日付,種別,カテゴリ,メモ,金額\n';
-  S.txs.forEach(t=>{ csv+=`${t.date},${lbl[t.type]||t.type},${t.category},"${t.memo}",${t.amount}\n`; });
+  let csv='日付,種別,カテゴリ,メモ,金額,対象者,精算状況\n';
+  S.txs.forEach(t=>{
+    const nm=t.payerName||t.staffName||'';
+    const status=nm?(t.settledAt?`精算済(${t.settledAt})`:'未精算'):'';
+    csv+=`${t.date},${lbl[t.type]||t.type},${t.category},"${t.memo}",${t.amount},${nm},${status}\n`;
+  });
   dlCSV(csv,'収支データ.csv');
 }
 function dlCSV(csv,filename){
@@ -3064,6 +3173,8 @@ async function init(){
   if(!S.saltSales) S.saltSales=[];
   if(!S.kaiinList) S.kaiinList=[];
   if(!S.suppList) S.suppList=[];
+  if(!S.payers) S.payers=[];
+  if(!S.payerSettlements) S.payerSettlements=[];
   if(typeof S.currentEventId==='undefined') S.currentEventId=S.events.length?S.events[0].id:null;
   save(); // マイグレーション結果を保存
 
@@ -3086,6 +3197,7 @@ async function init(){
   renderProducts(); renderProductGrid(); renderStockSummary();
   renderSalesHistory(); refreshRegisterStats();
   renderTxList(); refreshFinance(); renderCats();
+  renderPayers(); renderPayerSelect(); renderPayerSummary(); renderPayerSettleHistory();
   renderMembers(); renderRatioBar();
   renderMenuGrid(); renderMenuList(); renderCustomerMini();
   renderTreatments(); renderYataPayments(); refreshYataStats();
