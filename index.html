@@ -656,7 +656,8 @@ tr:hover td{background:#fafafa}
       <label>👤 対象者（立て替えた人／報酬の支払先）</label>
       <select id="fin-payer"></select>
     </div>
-    <button class="btn btn-danger btn-block" onclick="addTx()">＋ 経費を追加</button>
+    <button class="btn btn-danger btn-block" id="fin-submit-btn" onclick="addTx()">＋ 経費を追加</button>
+    <button class="btn btn-block btn-outline" id="fin-cancel-btn" style="display:none;margin-top:8px" onclick="cancelEditTx()">✕ 編集をキャンセル</button>
   </div>
 
   <!-- 経費一覧 -->
@@ -1173,7 +1174,7 @@ const S = {
   selCustId: null,
   yataPayMethod: 'unpaid',  // 施術記録の選択中支払方法
   cats: {
-    expense: ['仕入れ','会場費','設備費','印刷費','スタッフ支払い','人件費','広告費','交通費','旅費','宿泊費','食費','その他経費']
+    expense: ['仕入れ','会場費','設備費','印刷費','会議費','スタッフ支払い','人件費','広告費','交通費','旅費','宿泊費','食費','その他経費']
   },
   events: [],         // イベント一覧 [{id, name, date}]
   currentEventId: null, // 現在選択中のイベントID
@@ -1188,6 +1189,7 @@ const S = {
   payerSettlements: []  // 立替・報酬 精算履歴 [{id, date, payerKey, name, amount}]
 };
 let chartIncome=null, chartExp=null;
+let editingTxId=null; // 編集中の経費ID（nullなら新規追加モード）
 let yataFilter = 'all'; // 'today' | 'week' | 'all' | 'custom'
 
 // ========== STORAGE: IndexedDB（メイン）+ localStorage（バックアップ） ==========
@@ -2177,12 +2179,42 @@ function addTx(){
   const payerName=payerObj?payerObj.name:'';
   if(!amount||amount<=0){ toast('⚠️ 金額を入力してください'); return; }
   if(!date){ toast('⚠️ 日付を入力してください'); return; }
+  if(editingTxId){
+    const t=S.txs.find(x=>x.id===editingTxId);
+    if(t){ t.amount=amount; t.date=date; t.category=cat||'その他'; t.memo=memo; t.payerId=payerId; t.payerName=payerName; }
+    cancelEditTx();
+    save(); renderTxList(); refreshFinance(); renderPayerSummary(); toast('✅ 経費を更新しました');
+    return;
+  }
   S.txs.unshift({id:Date.now(),type:'expense',amount,date,category:cat||'その他',memo,payerId,payerName,settledAt:''});
   save(); renderTxList(); refreshFinance(); renderPayerSummary(); toast('✅ 経費を追加しました');
   set('fin-amount',''); set('fin-memo','');
   el2('fin-cat').value=''; el2('fin-payer').value='';
 }
-function delTx(id){ S.txs=S.txs.filter(t=>t.id!==id); save(); renderTxList(); refreshFinance(); renderPayerSummary(); toast('🗑 削除しました'); }
+function editTx(id){
+  const t=S.txs.find(x=>x.id===id);
+  if(!t) return;
+  set('fin-amount',t.amount); set('fin-date',t.date);
+  el2('fin-cat').value=t.category; set('fin-memo',t.memo||'');
+  el2('fin-payer').value=t.payerId||'';
+  editingTxId=id;
+  el2('fin-submit-btn').textContent='✔ 経費を更新する';
+  el2('fin-cancel-btn').style.display='block';
+  el2('fin-submit-btn').closest('.card').scrollIntoView({behavior:'smooth',block:'start'});
+  toast('✏️ 内容を変更して「更新する」を押してください');
+}
+function cancelEditTx(){
+  editingTxId=null;
+  set('fin-amount',''); set('fin-memo','');
+  el2('fin-cat').value=''; el2('fin-payer').value='';
+  el2('fin-submit-btn').textContent='＋ 経費を追加';
+  el2('fin-cancel-btn').style.display='none';
+}
+function delTx(id){
+  S.txs=S.txs.filter(t=>t.id!==id);
+  if(editingTxId===id) cancelEditTx();
+  save(); renderTxList(); refreshFinance(); renderPayerSummary(); toast('🗑 削除しました');
+}
 function renderTxList(){
   const tb=el2('fin-tbody'), emp=el2('fin-empty');
   const sorted=[...S.txs].sort((a,b)=>b.date.localeCompare(a.date));
@@ -2194,7 +2226,7 @@ function renderTxList(){
     const memoCell = nm
       ? `<span style="font-weight:700;color:#7c3aed">👤 ${nm}</span>${settledBadge}${t.memo?`<br><span style="color:var(--muted);font-size:.8rem">${t.memo}</span>`:''}`
       : (t.memo||'－');
-    return `<tr><td class="text-m">${t.date}</td><td><span class="badge b-other">${t.category}</span></td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${memoCell}</td><td class="fw" style="color:var(--expense)">-¥${t.amount.toLocaleString()}</td><td><button class="btn btn-sm btn-danger" onclick="delTx(${t.id})">削除</button></td></tr>`;
+    return `<tr><td class="text-m">${t.date}</td><td><span class="badge b-other">${t.category}</span></td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${memoCell}</td><td class="fw" style="color:var(--expense)">-¥${t.amount.toLocaleString()}</td><td style="white-space:nowrap"><button class="btn btn-sm btn-outline" onclick="editTx(${t.id})">✏️</button> <button class="btn btn-sm btn-danger" onclick="delTx(${t.id})">削除</button></td></tr>`;
   }).join('');
 }
 
@@ -3175,6 +3207,11 @@ async function init(){
   if(!S.suppList) S.suppList=[];
   if(!S.payers) S.payers=[];
   if(!S.payerSettlements) S.payerSettlements=[];
+  // マイグレーション: 既存データに「会議費」カテゴリが無ければ追加
+  if(S.cats&&S.cats.expense&&!S.cats.expense.includes('会議費')){
+    const otherIdx=S.cats.expense.indexOf('その他経費');
+    if(otherIdx>=0) S.cats.expense.splice(otherIdx,0,'会議費'); else S.cats.expense.push('会議費');
+  }
   if(typeof S.currentEventId==='undefined') S.currentEventId=S.events.length?S.events[0].id:null;
   save(); // マイグレーション結果を保存
 
